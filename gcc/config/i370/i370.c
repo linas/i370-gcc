@@ -3,7 +3,7 @@
    Free Software Foundation, Inc.
    Contributed by Jan Stein (jan@cd.chalmers.se).
    Modified for OS/390 LanguageEnvironment C by Dave Pitts (dpitts@cozx.com)
-   Hacked for Linux-ELF/390 by Linas Vepstas (linas@linas.org) 
+   Hacked for Linux-ELF/390 by Linas Vepstas (linas@linas.org)
 
 This file is part of GCC.
 
@@ -1328,12 +1328,68 @@ i370_globalize_label (stream, name)
   assemble_name (stream, name);
   putc ('\n', stream);
 }
-#endif /* TARGET_HLASM */
 
+/* This function generates the assembly code for function exit.
+   Args are as for output_function_prologue ().
+
+   The function epilogue should not depend on the current stack
+   pointer!  It should use the frame pointer only.  This is mandatory
+   because of alloca; we also take advantage of it to omit stack
+   adjustments before returning.  */
+
+static void
+i370_output_function_epilogue (file, l)
+     FILE *file;
+     HOST_WIDE_INT l ATTRIBUTE_UNUSED;
+{
+  int i;
+
+  check_label_emit ();
+  mvs_check_page (file, 14, 0);
+  fprintf (file, "* Function %s epilogue\n", mvs_function_name);
+  mvs_page_num++;
+
+#if MACROEPILOGUE == 1
+  fprintf (file, "\tEDCEPIL\n");
+#else /* MACROEPILOGUE != 1 */
+  fprintf (file, "\tL\t13,4(,13)\n");
+  fprintf (file, "\tL\t14,12(,13)\n");
+  fprintf (file, "\tLM\t2,12,28(13)\n");
+  fprintf (file, "\tBALR\t1,14\n");
+  fprintf (file, "\tDC\tA(");
+  assemble_name (file, mvs_function_name);
+  fprintf (file, ")\n" );
+#endif /* MACROEPILOGUE */
+
+  fprintf (file, "* Function %s literal pool\n", mvs_function_name);
+  fprintf (file, "\tDS\t0F\n" );
+  fprintf (file, "\tLTORG\n");
+  fprintf (file, "* Function %s page table\n", mvs_function_name);
+  fprintf (file, "\tDS\t0F\n");
+  fprintf (file, "PGT%d\tEQU\t*\n", function_base_page);
+
+  mvs_free_label_list();
+  for (i = function_base_page; i < mvs_page_num; i++)
+    fprintf (file, "\tDC\tA(PG%d)\n", i);
+}
+
+static void
+i370_file_start ()
+{
+  fputs ("\tRMODE\tANY\n\tCSECT\n", asm_out_file);
+}
+
+static void
+i370_file_end ()
+{
+  fputs ("\tEND\n", asm_out_file);
+}
+#endif /* TARGET_HLASM */
 
 #ifdef TARGET_ELF_ABI
 /*
-   The 370_function_prolog() routine generates the current ELF ABI ES/390 prolog.
+   The i370_output_function_prolog() routine generates the current
+   ELF ABI ES/390 prolog.
    It implements a stack that grows downward. 
    It performs the following steps:
    -- saves the callers non-volatile registers on the callers stack.
@@ -1425,7 +1481,6 @@ i370_output_function_prologue (f, frame_size)
   /* find all labels in this routine */
   i370_label_scan ();
 }
-#endif /* TARGET_ELF_ABI */
 
 /* This function generates the assembly code for function exit.
    Args are as for output_function_prologue ().
@@ -1441,47 +1496,36 @@ i370_output_function_epilogue (file, l)
      HOST_WIDE_INT l ATTRIBUTE_UNUSED;
 {
   int i;
-
-  check_label_emit ();
-  mvs_check_page (file, 14, 0);
-  fprintf (file, "* Function %s epilogue\n", mvs_function_name);
+  check_label_emit();
+  mvs_check_page (file,14,0);
+  fprintf (file, "# Function epilogue\n");
+  fprintf (file, "\tL\tsp,4(0,sp)\n");
+  fprintf (file, "\tL\tlr,12(0,sp)\n");
+  fprintf (file, "\tLM\t2,12,28(sp)\n");
+  fprintf (file, "\tBASR\t1,lr\n");
   mvs_page_num++;
-
-#if MACROEPILOGUE == 1
-  fprintf (file, "\tEDCEPIL\n");
-#else /* MACROEPILOGUE != 1 */
-  fprintf (file, "\tL\t13,4(,13)\n");
-  fprintf (file, "\tL\t14,12(,13)\n");
-  fprintf (file, "\tLM\t2,12,28(13)\n");
-  fprintf (file, "\tBALR\t1,14\n");
-  fprintf (file, "\tDC\tA(");
-  assemble_name (file, mvs_function_name);
-  fprintf (file, ")\n" );
-#endif /* MACROEPILOGUE */
-
-  fprintf (file, "* Function %s literal pool\n", mvs_function_name);
-  fprintf (file, "\tDS\t0F\n" );
-  fprintf (file, "\tLTORG\n");
-  fprintf (file, "* Function %s page table\n", mvs_function_name);
-  fprintf (file, "\tDS\t0F\n");
-  fprintf (file, "PGT%d\tEQU\t*\n", function_base_page);
-
-  mvs_free_label_list();
-  for (i = function_base_page; i < mvs_page_num; i++)
-    fprintf (file, "\tDC\tA(PG%d)\n", i);
+  fprintf (file, "# Function literal pool\n");
+  fprintf (file, "\t.balign\t4\n");
+  fprintf (file, "\t.ltorg\n");
+  fprintf (file, "# Function page table\n");
+  fprintf (file, "\t.balign\t4\n");
+  fprintf (file, ".LPGT%d:\n", function_base_page);
+  for ( i = function_base_page; i < mvs_page_num; i++ )
+    fprintf (file, "\t.long\t.LPG%d\n", i);
 }
 
 static void
 i370_file_start ()
 {
-  fputs ("\tRMODE\tANY\n\tCSECT\n", asm_out_file);
+  // fputs ("\tRMODE\tANY\n\tCSECT\n", asm_out_file);
 }
 
 static void
 i370_file_end ()
 {
-  fputs ("\tEND\n", asm_out_file);
+  // fputs ("\tEND\n", asm_out_file);
 }
+#endif /* TARGET_ELF_ABI */
 
 static void
 i370_internal_label (stream, prefix, labelno)
