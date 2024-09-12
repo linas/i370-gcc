@@ -619,7 +619,7 @@ enum reg_class
    It is the offset to the BEGINNING of the first local allocated.  */
 
 #define STARTING_FRAME_OFFSET                  \
-     ((current_function_varargs || current_function_stdarg) ?    \
+     (current_function_stdarg ?    \
      (I370_SAVE_AREA_SIZE + I370_VARARGS_AREA_SIZE):       \
      (I370_SAVE_AREA_SIZE + current_function_args_size))
 

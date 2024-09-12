@@ -529,7 +529,7 @@ check_label_emit ()
 #endif
 
 #ifdef TARGET_ELF_ABI
-int
+void
 check_label_emit (void)
 {
   if (mvs_need_base_reload)
@@ -1515,8 +1515,7 @@ i370_output_function_prologue (f, frame_size)
 {
   static int function_label_index = 1;
   static int function_first = 0;
-  int i;
-  int stackframe_size, soffset, aligned_size;
+  int stackframe_size, aligned_size;
 
   /* store stack size where we can get to it */
 #ifdef STACK_GROWS_DOWNWARDS
@@ -1525,7 +1524,7 @@ i370_output_function_prologue (f, frame_size)
 #else /* STACK_GROWS_DOWNWARDS */
   stackframe_size =
      STACK_POINTER_OFFSET + current_function_args_size + frame_size;
-  if (current_function_varargs || current_function_stdarg)
+  if (current_function_stdarg)
     {
       stackframe_size += I370_VARARGS_AREA_SIZE;
     }
@@ -1534,10 +1533,11 @@ i370_output_function_prologue (f, frame_size)
   aligned_size = (stackframe_size + 7) >> 3;
   aligned_size <<= 3;
 
-  fprintf (f, "# arg_size=0x%x frame_size=0x%x aligned size=0x%x\n",
+  fprintf (f, "# arg_size=0x%x frame_size=" HOST_WIDE_INT_PRINT_HEX
+              " aligned size=0x%x\n",
      current_function_args_size, frame_size, aligned_size);
-  fprintf (f, "# varargs=%d stdarg=%d rserved area size=0x%x\n",
-     current_function_varargs, current_function_stdarg, I370_VARARGS_AREA_SIZE);
+  fprintf (f, "# stdarg=%d rserved area size=0x%x\n",
+     current_function_stdarg, I370_VARARGS_AREA_SIZE);
 
 #ifdef STACK_GROWS_DOWNWARDS
   /* If you want your stack to grow down, you will need to create this piece. */
@@ -1654,39 +1654,39 @@ i370_output_function_epilogue (file, l)
   check_label_emit();
   mvs_check_page (file,14,0);
   fprintf (file, "# Function epilogue\n");
-  fprintf (FILE, "\tL\tr14,12(,r13)\n");
-  fprintf (FILE, "\tLM\t2,12,28(r13)\n");
-  fprintf (FILE, "\tL\tr13,8(,r13)\n");
-  fprintf (FILE, "\tBASR\tr1,r14\n");
+  fprintf (file, "\tL\tr14,12(,r13)\n");
+  fprintf (file, "\tLM\t2,12,28(r13)\n");
+  fprintf (file, "\tL\tr13,8(,r13)\n");
+  fprintf (file, "\tBASR\tr1,r14\n");
   fprintf (file, "# Function literal pool\n");
   if (i370_enable_pic)
     {
-      fprintf (FILE, ".data\n");
-      fprintf (FILE, "\t.balign\t4\n");
-      fprintf (FILE, ".LPOOL%d:\n",mvs_page_num);
-      fprintf (FILE, "\t.ltorg\n");
-      fprintf (FILE, "# Function page table\n");
-      fprintf (FILE, "\t.balign\t4\n");
-      fprintf (FILE, ".LPGT%d:\n", function_base_page);
+      fprintf (file, ".data\n");
+      fprintf (file, "\t.balign\t4\n");
+      fprintf (file, ".LPOOL%d:\n",mvs_page_num);
+      fprintf (file, "\t.ltorg\n");
+      fprintf (file, "# Function page table\n");
+      fprintf (file, "\t.balign\t4\n");
+      fprintf (file, ".LPGT%d:\n", function_base_page);
       mvs_page_num++;
       for ( i = function_base_page; i < mvs_page_num; i++ )
         {
-          fprintf (FILE, "\t.long\t.LPG%d\n", i);
-          fprintf (FILE, "\t.long\t.LPOOL%d\n", i);
+          fprintf (file, "\t.long\t.LPG%d\n", i);
+          fprintf (file, "\t.long\t.LPOOL%d\n", i);
         }
-      /* fprintf (FILE, ".previous\n");   */
+      /* fprintf (file, ".previous\n");   */
     }
   else
     {
-      fprintf (FILE, "\t.balign\t4\n");
-      fprintf (FILE, "\t.ltorg\n");
-      fprintf (FILE, "# Function page table\n");
-      fprintf (FILE, "\t.balign\t4\n");
-      fprintf (FILE, ".LPGT%d:\n", function_base_page);
+      fprintf (file, "\t.balign\t4\n");
+      fprintf (file, "\t.ltorg\n");
+      fprintf (file, "# Function page table\n");
+      fprintf (file, "\t.balign\t4\n");
+      fprintf (file, ".LPGT%d:\n", function_base_page);
       mvs_page_num++;
       for ( i = function_base_page; i < mvs_page_num; i++ )
         {
-          fprintf (FILE, "\t.long\t.LPG%d\n", i);
+          fprintf (file, "\t.long\t.LPG%d\n", i);
         }
     }
   mvs_free_label_list();
