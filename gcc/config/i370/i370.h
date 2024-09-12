@@ -554,7 +554,7 @@ enum reg_class
 /* Accumulate the outgoing argument count so we can request the right
    DSA size and determine stack offset.  */
 
-#define ACCUMULATE_OUTGOING_ARGS
+#define ACCUMULATE_OUTGOING_ARGS 1
 
 #endif /* TARGET_HLASM */
 
@@ -633,7 +633,7 @@ enum reg_class
    that we need.  Specifically, if it is set, then the stack pointer is
    not bumped when args are placed on the stack, which is just how we want
    it. */
-#define ACCUMULATE_OUTGOING_ARGS
+#define ACCUMULATE_OUTGOING_ARGS 1
 
 #endif /* TARGET_ELF_ABI */
 /* ================= */
