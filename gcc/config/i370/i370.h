@@ -316,12 +316,6 @@ extern int i370_enable_pic;
   (((MODE1) == SFmode || (MODE1) == DFmode)				\
    == ((MODE2) == SFmode || (MODE2) == DFmode))
 
-/* Mark external references.  */
-
-#define ENCODE_SECTION_INFO(decl)                 \
-  if (DECL_EXTERNAL (decl) && TREE_PUBLIC (decl))          \
-    SYMBOL_REF_FLAG (XEXP (DECL_RTL (decl), 0)) = 1;
-
 /* Specify the registers used for certain standard purposes.
    The values of these macros are register numbers.  */
 
@@ -986,10 +980,6 @@ enum reg_class
 
 /* #define CASE_VECTOR_PC_RELATIVE */
 
-/* Specify the tree operation to be used to convert reals to integers.  */
-
-#define IMPLICIT_FIX_EXPR FIX_ROUND_EXPR
-
 /* Define this if fixuns_trunc is the same as fix_trunc.  */
 
 #define FIXUNS_TRUNC_LIKE_FIX_TRUNC
@@ -998,18 +988,10 @@ enum reg_class
 
 #define DEFAULT_SIGNED_CHAR 0
 
-/* This is the kind of divide that is easiest to do in the general case.  */
-
-#define EASY_DIV_EXPR TRUNC_DIV_EXPR
-
 /* Max number of bytes we can move from memory to memory in one reasonably
    fast instruction.  */
 
 #define MOVE_MAX 256
-
-/* Define this if zero-extension is slow (more than one real instruction).  */
-
-#define SLOW_ZERO_EXTEND 1
 
 /* Nonzero if access to memory by bytes is slow and undesirable.  */
 
