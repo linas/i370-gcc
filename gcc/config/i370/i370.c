@@ -1043,11 +1043,6 @@ r_or_s_operand (op, mode)
    cmpdi and bgt patterns.  Note also that for the i370, various
    arithmetic insn's set the condition code as well.
 
-   The code below includes a hack for compiling crtstuff.c, which
-   bombs when it sees `if (__builtin_expect (completed, 0))` because
-   the `__builtin_expect` doesn't have a compare. I don't understand
-   the root cause.
-
    The unsigned_jump_follows_p() routine  returns a 1 if the next jump 
    is unsigned.  INSN is the current instruction.  */
 
@@ -1055,23 +1050,14 @@ int
 unsigned_jump_follows_p (insn)
      register rtx insn;
 {
-  int loopcnt = 0;
   rtx orig_insn = insn;
   while (1) 
     {
       register rtx tmp_insn;
       enum rtx_code coda;
   
-      loopcnt++;
       insn = NEXT_INSN (insn);
-      if (!insn)
-        {
-          // Hack, for handling if (__builtin_expect (...))
-          if (10 < loopcnt)
-            return 0;
-          else
-            fatal_insn ("internal error--no jump follows compare:", orig_insn);
-        }
+      if (!insn) fatal_insn ("internal error--no jump follows compare:", orig_insn);
   
       if (GET_CODE (insn) != JUMP_INSN) continue;
     
