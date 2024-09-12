@@ -1900,6 +1900,28 @@ abort(); \
     }									\
 }
 
+/* Copy from elfos.h, but capture the function name first. */
+
+#define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
+{									\
+  if (strlen (NAME) + 1 > mvs_function_name_length)			\
+    {									\
+      if (mvs_function_name)						\
+	free (mvs_function_name);					\
+      mvs_function_name = 0;						\
+    }									\
+  if (!mvs_function_name)						\
+    {									\
+      mvs_function_name_length = strlen (NAME) * 2 + 1;			\
+      mvs_function_name = (char *) xmalloc (mvs_function_name_length);	\
+    }									\
+  strcpy (mvs_function_name, NAME);					\
+									\
+  ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");			\
+  ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));			\
+  ASM_OUTPUT_LABEL (FILE, NAME);					\
+}
+
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  */
 /* Make it a no-op for now, so we can at least compile glibc */
