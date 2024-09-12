@@ -15,10 +15,13 @@ The original i370 port can be found on
 [Linas' i370 website](https://linas.org/linux/i370/i370.html).
 
 ### HOWTO
-Nothing yet.
-
+Nothing works yet. Currently attempt to revive the old version 3.4.6
+with is the last version that had i370 in it.
 ```
-../configure --target=i370-ibm-linux
+git checkout i370-gcc-3.4.6
+mkdir build; cd build
+../configure --target=i370-ibm-linux --enable-obsolete --enable-languages="c" --with-newlib
+make
 ```
 
 Original GNU README
