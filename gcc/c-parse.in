@@ -54,6 +54,11 @@ Software Foundation, 59 Temple Place - Suite 330, Boston, MA
 #include "objc-act.h"
 @@end_ifobjc
 
+// Weird hack needed for newer bison -- linas
+#ifndef YYLEX
+# define YYLEX			yylex ()
+#endif
+
 /* Like YYERROR but do call yyerror.  */
 #define YYERROR1 { yyerror ("syntax error"); YYERROR; }
 
