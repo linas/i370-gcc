@@ -1920,7 +1920,6 @@ abort(); \
 									\
   ASM_OUTPUT_TYPE_DIRECTIVE (FILE, NAME, "function");			\
   ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));			\
-  ASM_OUTPUT_LABEL (FILE, NAME);					\
 }
 
 /* Output assembler code to FILE to increment profiler label # LABELNO
