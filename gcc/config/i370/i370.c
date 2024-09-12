@@ -1075,7 +1075,7 @@ unsigned_jump_follows_p (insn)
   
       if (GET_CODE (insn) != JUMP_INSN) continue;
     
-      tmp_insn = XEXP (insn, 3);
+      tmp_insn = PATTERN (insn);
       if (GET_CODE (tmp_insn) != SET) continue;
     
       if (GET_CODE (XEXP (tmp_insn, 0)) != PC) continue;
