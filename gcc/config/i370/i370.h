@@ -1922,6 +1922,23 @@ abort(); \
   ASM_DECLARE_RESULT (FILE, DECL_RESULT (DECL));			\
 }
 
+/* Overload the default implementation, so that we can hop back to
+ * the previous (text) segment, before printing .Letext0. This is
+ * needed only because the PIC code dumping prologs in the .data
+ * segment.  In general, the PIC design my be very broken, so this
+ * might not be needed in the end. */
+#undef ASM_DECLARE_FUNCTION_SIZE
+#define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)			\
+  do									\
+    {									\
+      if (!flag_inhibit_size_directive)					\
+        {								\
+          ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
+          fprintf(FILE, ".previous\n");					\
+        }								\
+    }									\
+  while (0)
+
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  */
 /* Make it a no-op for now, so we can at least compile glibc */
