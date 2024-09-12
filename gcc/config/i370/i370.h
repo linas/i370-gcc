@@ -1902,6 +1902,7 @@ abort(); \
 
 /* Copy from elfos.h, but capture the function name first. */
 
+#undef ASM_DECLARE_FUNCTION_NAME
 #define ASM_DECLARE_FUNCTION_NAME(FILE, NAME, DECL)			\
 {									\
   if (strlen (NAME) + 1 > mvs_function_name_length)			\
