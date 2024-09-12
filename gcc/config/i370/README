@@ -34,27 +34,13 @@ The ELF ABI
 -----------
 This compiler, in conjunction with the gas/binutils assembler, defines
 a defacto ELF-based ABI for the ESA/390 architecture.  Be warned: this 
-ABI has several major faults.  It should be fixed.  As it is fixed,
-it is subject to change without warning.  You should not commit to major
-software systems without further exploring and fixing these problems.
-Here are some of the problems:
+ABI is experimental.  It is subject to change.  You should not commit
+to major software systems without further exploring and understanding
+ABI issues.
+Here are some of the known issues:
 
--- No support for shared libraries or dynamically loadable objects.
-   This is because the compiler currently places address literals in 
-   the text section.  Although the GAS assembler supports a syntax for 
-   USING that will place address literals in the data section, this forces
-   the use of two base registers, one for branches and one for the literal 
-   pool. Work is needed to redesign the function prologue, epilogue and the 
-   base register reloads to minimize the currently excessive use of reserved 
-   registers. 
-
-   I beleive the best solution would be to add a toc or plt, and extending
-   the meaning of the USING directive to encompass this.  This would 
-   allow the continued use of the human-readable and familiar practice
-   of using =A() and =F'' to denote address literals, as opposed to more 
-   difficult jump-table notation.
-
--- the stackframe is almost twice as big as it needs to be.
+-- all arguments are currently passed on the stack.  It would be more
+   efficient to pass arguments in registers.
 
 -- currently, r15 is used to return 32-bit values.  Because this is the
    last register, it prevents 64-bit ints and small structures from being 
@@ -62,10 +48,51 @@ Here are some of the problems:
    efficient to use r14 to return 32-bit values, and r14+r15 to return
    64-bit values.
 
--- all arguments are currently passed in memory.  It would be more efficient 
-   to pass arguments in registers.
+-- a large variety of performance gains might be gotten by redesigning
+   the guts of i370.md.
+
+ELF ABI PIC Overview
+--------------------
+The -fPIC flag should produce position independent code.  By specifying this
+flag, address constants are stored in the data section, instead of the text
+section, allowing them to be adjusted during a dynamic/runtime load.  Adressing
+is established using r12 as base pointer in the data section. Crudely speaking,
+it addresses what looks like a two-level toc.  Since i370 has a very small
+offset (12-bit), a multi-level toc is needed.  In order to establish r12,
+a short chunk of linkage is executed from the data segment.  Basically, the
+calling sequence looks like this:
+
+.text
+caller:
+  L  r15,=A(callee)
+  BASR  r14,r15
+
+.data
+callee:
+  ST r12,68(,sp)
+  L  r12,12(,r15)
+  BR r12
+  .short   0
+  .long callee.textentry
+  .long callee.literalpool
+  .long callee.pagetable
+  .using   callee.literalpool,r12
+
+.text
+callee.textentry:
+  L  r12,16(,r15)
+  ... main body of callee routine ...
+
+.data
+callee.literalpool:
+  .ltorg
 
 
+The idea here is that r15 is used in the branch and link (BASR) to
+establish r15.  But r15 is used to address a pseudo-toc entry in the
+data section. The pseudo-toc entry contains the real address of the
+text to be called, and a pointer to the first literal pool for that
+routine.  Additional literal pools are chained as needed.
 
 
 ChangeLog
@@ -117,9 +144,3 @@ Oct98-Dec98 -- add ELF back end; work on getting ABI more or less functional.
             remove un-needed base register reload.
 99.05.15 -- fix movstrsi, clrstrsi, cmpstrsi patterns as per conversation 
             w/ Richard Henderson
-
-
-
-
-
-
