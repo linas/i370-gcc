@@ -47,7 +47,7 @@ Boston, MA 02111-1307, USA.  */
 
 extern FILE *asm_out_file;
 
-/* Label node.  This structure is used to keep track of labels 
+/* Label node.  This structure is used to keep track of labels
       on the various pages in the current routine.
    The label_id is the numeric ID of the label,
    The label_page is the page on which it actually appears,
@@ -134,7 +134,7 @@ static bool i370_rtx_costs (rtx, int, int, int *);
 #define MAX_LONG_LABEL_SIZE 255
 
 /* Alias node, this structure is used to keep track of aliases to external
-   variables. The IBM assembler allows an alias to an external name 
+   variables. The IBM assembler allows an alias to an external name
    that is longer that 8 characters; but only once per assembly.
    Also, this structure stores the #pragma map info.  */
 typedef struct alias_node
@@ -237,13 +237,13 @@ override_options ()
 }
 
 /* ===================================================== */
-/* The following three routines are used to determine whther 
+/* The following three routines are used to determine whether
    forward branch is on this page, or is a far jump.  We use
    the "length" attr on an insn [(set_atter "length" "4")]
    to store the largest possible code length that insn
    could have.  This gives us a hint of the address of a
-   branch destination, and from that, we can work out 
-   the length of the jump, and whether its on page or not. 
+   branch destination, and from that, we can work out
+   the length of the jump, and whether its on page or not.
  */
 
 /* Return the destination address of a branch.  */
@@ -295,10 +295,10 @@ i370_short_branch (insn)
   int base_offset;
 
   base_offset = i370_branch_length(insn);
-  if (0 > base_offset) 
+  if (0 > base_offset)
     {
       base_offset += mvs_page_code;
-    } 
+    }
   else 
     {
       /* avoid bumping into lit pool; use 2x to estimate max possible lits */
@@ -1533,7 +1533,7 @@ i370_output_function_prologue (f, frame_size)
 
   aligned_size = (stackframe_size + 7) >> 3;
   aligned_size <<= 3;
-  
+
   fprintf (f, "# arg_size=0x%x frame_size=0x%x aligned size=0x%x\n",
      current_function_args_size, frame_size, aligned_size);
   fprintf (f, "# varargs=%d stdarg=%d rserved area size=0x%x\n",
@@ -1654,19 +1654,42 @@ i370_output_function_epilogue (file, l)
   check_label_emit();
   mvs_check_page (file,14,0);
   fprintf (file, "# Function epilogue\n");
-  fprintf (file, "\tL\tsp,4(0,sp)\n");
-  fprintf (file, "\tL\tlr,12(0,sp)\n");
-  fprintf (file, "\tLM\t2,12,28(sp)\n");
-  fprintf (file, "\tBASR\t1,lr\n");
-  mvs_page_num++;
+  fprintf (FILE, "\tL\tr14,12(,r13)\n");
+  fprintf (FILE, "\tLM\t2,12,28(r13)\n");
+  fprintf (FILE, "\tL\tr13,8(,r13)\n");
+  fprintf (FILE, "\tBASR\tr1,r14\n");
   fprintf (file, "# Function literal pool\n");
-  fprintf (file, "\t.balign\t4\n");
-  fprintf (file, "\t.ltorg\n");
-  fprintf (file, "# Function page table\n");
-  fprintf (file, "\t.balign\t4\n");
-  fprintf (file, ".LPGT%d:\n", function_base_page);
-  for ( i = function_base_page; i < mvs_page_num; i++ )
-    fprintf (file, "\t.long\t.LPG%d\n", i);
+  if (i370_enable_pic)
+    {
+      fprintf (FILE, ".data\n");
+      fprintf (FILE, "\t.balign\t4\n");
+      fprintf (FILE, ".LPOOL%d:\n",mvs_page_num);
+      fprintf (FILE, "\t.ltorg\n");
+      fprintf (FILE, "# Function page table\n");
+      fprintf (FILE, "\t.balign\t4\n");
+      fprintf (FILE, ".LPGT%d:\n", function_base_page);
+      mvs_page_num++;
+      for ( i = function_base_page; i < mvs_page_num; i++ )
+        {
+          fprintf (FILE, "\t.long\t.LPG%d\n", i);
+          fprintf (FILE, "\t.long\t.LPOOL%d\n", i);
+        }
+      /* fprintf (FILE, ".previous\n");   */
+    }
+  else
+    {
+      fprintf (FILE, "\t.balign\t4\n");
+      fprintf (FILE, "\t.ltorg\n");
+      fprintf (FILE, "# Function page table\n");
+      fprintf (FILE, "\t.balign\t4\n");
+      fprintf (FILE, ".LPGT%d:\n", function_base_page);
+      mvs_page_num++;
+      for ( i = function_base_page; i < mvs_page_num; i++ )
+        {
+          fprintf (FILE, "\t.long\t.LPG%d\n", i);
+        }
+    }
+  mvs_free_label_list();
 }
 
 static void

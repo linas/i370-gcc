@@ -838,9 +838,6 @@ enum reg_class
 	  && GET_CODE (XEXP (XEXP (X, 0), 0)) == SYMBOL_REF		\
 	  && !SYMBOL_REF_EXTERNAL_P (XEXP (XEXP (X, 0), 0))))
 
-/* XXX FIXME: Maybe last line should be
-   && !SYMBOL_REF_FLAG (XEXP (XEXP (X, 0), 0))))  ??? */
-
 /* Nonzero if the constant value X is a legitimate general operand.
    It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
 
@@ -1010,6 +1007,10 @@ enum reg_class
 
 #define MOVE_MAX 256
 
+/* Define this if zero-extension is slow (more than one real instruction).  */
+
+#define SLOW_ZERO_EXTEND 1
+
 /* Nonzero if access to memory by bytes is slow and undesirable.  */
 
 #define SLOW_BYTE_ACCESS 1
@@ -1024,7 +1025,10 @@ enum reg_class
 
 #define TRULY_NOOP_TRUNCATION(OUTPREC, INPREC)	(OUTPREC != 16)
 
-/* ??? Investigate defining STORE_FLAG_VALUE to (-1).  */
+/* We assume that the store-condition-codes instructions store 0 for false
+   and some other value for true.  This is the value stored for true.  */
+
+/* #define STORE_FLAG_VALUE -1 */
 
 /* When a prototype says `char' or `short', really pass an `int'.  */
 
