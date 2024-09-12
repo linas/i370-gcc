@@ -3,7 +3,7 @@
    Free Software Foundation, Inc.
    Contributed by Jan Stein (jan@cd.chalmers.se).
    Modified for OS/390 LanguageEnvironment C by Dave Pitts (dpitts@cozx.com)
-   Hacked for Linux-ELF/390 by Linas Vepstas (linas@linas.org)
+   Modified for Linux-ELF/390 by Linas Vepstas (linas@linas.org)
 
 This file is part of GCC.
 
@@ -206,7 +206,13 @@ static const char *const mvs_function_table[MVS_FUNCTION_TABLE_LENGTH] =
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
-/* Set global variables as needed for the options enabled.  */
+/* Flag that enables position independent code */
+int i370_enable_pic = 1;
+
+/* Set global variables as needed for the options enabled.
+   This is also our last chance to clean up before starting to compile,
+   and so we can fix up some initializations here.
+  */
 
 void
 override_options ()
@@ -215,6 +221,19 @@ override_options ()
   memset (real_format_for_mode, 0, sizeof real_format_for_mode);
   REAL_MODE_FORMAT (SFmode) = &i370_single_format;
   REAL_MODE_FORMAT (DFmode) = &i370_double_format;
+
+#ifdef TARGET_ELF_ABI
+  /* Override CALL_USED_REGISTERS & FIXED_REGISTERS
+     PIC requires r12, otherwise its free */
+  if (i370_enable_pic)
+    {
+      fix_register ("r12", 1, 1);
+    }
+  else
+    {
+      fix_register ("r12", 0, 0);
+    }
+#endif /* TARGET_ELF_ABI */
 }
 
 /* ===================================================== */
@@ -459,19 +478,41 @@ i370_label_scan ()
    reloads when several labels are generated pointing to the same place
    in the code.  
 
-   The page table is written at the end of the function. 
-   The entries in the page table look like
+   The table of base register values is created at the end of the function.
+   The MVS/OE/USS/HLASM version keeps this table in the text section, and
+   it looks like the following:
+      PGT0 EQU *
+      DC A(PG0)
+      DC A(PG1)
+
+   The ELF version keeps the base register table in either the text or the
+   data section, depending on the setting of the i370_enable_pic flag.
+   Disabling this flag frees r12 for general purpose use, but makes the
+   code non-relocatable.  The non-pic table resemble the mvs-style table.
+   The pic table stores values for both r3 (the register used for branching)
+   and r12 (the register to index the literal pool, also in the data section).
+   Thus, the ELF pic version has twice as many entries, and double the offset.
+
      .LPGT0:          // PGT0 EQU *
      .long .LPG0      // DC A(PG0)
+     .long .LPOOL0
      .long .LPG1      // DC A(PG1)
-  while the prologue generates
+     .long .LPOOL1
+
+  Note that the function prologue loads the page addressing register:
       L       r4,=A(.LPGT0)
 
-  Note that this paging scheme breaks down if a single subroutine 
-  has more than about 10MB of code in it ... as long as humans write
-  code, this shouldn't be a problem ...
+  The ELF version then stores this value at 0(r13), so that its always
+  accessible. This frees up r4 for general register allocation; whereas
+  the MVS version is stuck with r4.
+
+  Note that this addressing scheme breaks down when a single subroutine
+  has more than twelve MBytes of code or so for non-pic, and 6MB for pic.
+  Its hard to imagine under what circumstances a single subroutine would
+  ever get that big ...
  */
 
+#ifdef TARGET_HLASM
 void
 check_label_emit ()
 {
@@ -485,6 +526,36 @@ check_label_emit ()
 	  PAGE_REGISTER);
     }
 }
+#endif
+
+#ifdef TARGET_ELF_ABI
+int
+check_label_emit (void)
+{
+  if (mvs_need_base_reload)
+    {
+      mvs_need_base_reload = 0;
+
+      if (i370_enable_pic)
+        {
+          mvs_page_code += 12;
+          fprintf (assembler_source, "\tL\tr3,0(,r13)\n");
+          fprintf (assembler_source, "\tL\tr%d,%d(,r3)\n",
+              PIC_BASE_REGISTER, ((mvs_page_num - function_base_page) * 8 +4));
+          fprintf (assembler_source, "\tL\tr3,%d(,r3)\n",
+              (mvs_page_num - function_base_page) * 8);
+        }
+      else
+        {
+          mvs_page_code += 8;
+          fprintf (assembler_source, "\tL\tr3,0(,r13)\n");
+          fprintf (assembler_source, "\tL\tr3,%d(,r3)\n",
+              ((mvs_page_num - function_base_page) * 4));
+        }
+    }
+}
+#endif /* TARGET_ELF_ABI */
+
 
 /* Add the label to the current page label list.  If a free element is available
    it will be used for the new label.  Otherwise, a label element will be
@@ -689,26 +760,62 @@ mvs_check_page (file, code, lit)
 
   if (mvs_page_code + code + mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
     {
-      /* hop past the literal pool */
-      fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
+      if (i370_enable_pic)
+        {
+          /* Dump the literal pool. The .baligns are optional, since
+             ltorg will align to the size of the largest literal
+             (which is possibly 8 bytes) */
+          fprintf (assembler_source, ".data\n"
+                                     "\t.balign\t4\n"
+                                     ".LPOOL%d:\n"
+                                     "\t.ltorg\n"
+                                     "\t.drop\tr%d\n"
+                                     "\t.using\t.LPOOL%d,r%d\n"
+                                     ".previous\n",
+                   mvs_page_num, PIC_BASE_REGISTER,
+                   mvs_page_num+1, PIC_BASE_REGISTER);
 
-      /* dump the literal pool. The .baligns are optional, since 
-       * ltorg will align to the size of the largest literal 
-       * (which is possibly 8 bytes) */
-      fprintf (assembler_source, "\t.balign\t4\n");
-      fprintf (assembler_source, "\t.LTORG\n");
-      fprintf (assembler_source, "\t.balign\t4\n");
 
-      /* we continue execution here ...  */
-      fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
-      fprintf (assembler_source, "\t.DROP\t%d\n", BASE_REGISTER);
-      mvs_page_num++;
+          /* we continue execution here ... */
+          fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+          fprintf (assembler_source, "\t.drop\tr%d\n",
+                                      BASE_REGISTER);
+          mvs_page_num++;
 
-      /* BASR puts the contents of the PSW into r3
-       * that is, r3 will be loaded with the address of "." */
-      fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
-      fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
-      fprintf (assembler_source, "\t.USING\t.,r%d\n", BASE_REGISTER);
+          /* BASR puts the contents of the PSW into r3
+             that is, r3 will be loaded with the address of "."
+             We also put location of new literal pool into r12 */
+          fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
+          fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+          fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+          fprintf (assembler_source, "\tL\tr%d,%d(,r%d)\n", PIC_BASE_REGISTER,
+               (mvs_page_num - function_base_page) * 8 + 4, PAGE_REGISTER);
+
+        }
+      else
+        {
+          /* hop past the literal pool */
+          fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
+
+
+          /* dump the literal pool. The .baligns are optional, since
+           * ltorg will align to the size of the largest literal
+           * (which is possibly 8 bytes) */
+          fprintf (assembler_source, "\t.balign\t4\n");
+          fprintf (assembler_source, "\t.LTORG\n");
+          fprintf (assembler_source, "\t.balign\t4\n");
+
+          /* we continue execution here ... */
+          fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+          fprintf (assembler_source, "\t.drop\t%d\n", BASE_REGISTER);
+          mvs_page_num++;
+
+          /* BASR puts the contents of the PSW into r3
+           * that is, r3 will be loaded with the address of "." */
+          fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
+          fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+          fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+        }
       mvs_page_code = code;
       mvs_page_lit = lit;
       return 1;
@@ -1376,22 +1483,29 @@ i370_file_end ()
 /*
    The i370_output_function_prolog() routine generates the current
    ELF ABI ES/390 prolog.
-   It implements a stack that grows downward. 
-   It performs the following steps:
-   -- saves the callers non-volatile registers on the callers stack.
-   -- subtracts stackframe size from the stack pointer.
+   There are some provisions for stacks that grow both up and down.  Both
+   were implemented for experimental purposes.  The two differ in subtle ways:
+
+   The downward growing stack requires the following steps:
+   -- saves the caller's non-volatile registers on the callers stack.
+   -- places callee's arguments in callers stack
+   -- adds the stackframe size to the stack/frame pointer.
+   -- optionally sets up a frame pointer
    -- stores backpointer to old caller stack.
-  
-   XXX hack alert -- if the global var int leaf_function is nonzero, 
-   then this is a leaf, and it might be possible to optimize the prologue
-   into doing even less, e.g. not grabbing a new stackframe or maybe just a
-   partial stack frame.
-  
-   XXX hack alert -- the current stack frame is bloated into twice the 
-   needed size by unused entries. These entries make it marginally 
-   compatible with MVS/OE/USS C environment, but really they're not used
-   and could probably chopped out. Modifications to i370.md would be needed
-   also, to quite using addresses 136, 140, etc.
+
+   The upward growing stack performs the following:
+   -- saves the caller's non-volatile registers on the callee's stack.
+   -- places callee's arguments in callee's stack
+   -- adds the stackframe size to the stack pointer.
+   -- callers stack pointer becomes calee's frame pointer.
+   -- stores backpointer to old caller stack.
+
+   Note that with the upwards growing stack, we pass args on the callee's
+   stack.  As a result, we don't know a-priori how many arguments there
+   will be.  We make a worse case assumption and hard-code room for 128
+   args (== I370_VARARGS_AREA_SIZE/4).  This hard-coded limit seems to
+   be a reasonable tradeoff for the otherwise much simplified and speedier
+   design.
  */
 
 static void
@@ -1401,61 +1515,116 @@ i370_output_function_prologue (f, frame_size)
 {
   static int function_label_index = 1;
   static int function_first = 0;
-  int stackframe_size, aligned_size;
+  int i;
+  int stackframe_size, soffset, aligned_size;
 
-  fprintf (f, "# Function prologue\n");
-  /* define the stack, put it into its own data segment
-     FDSE == Function Stack Entry
-     FDSL == Function Stack Length */
-  stackframe_size = 
+  /* store stack size where we can get to it */
+#ifdef STACK_GROWS_DOWNWARDS
+  stackframe_size =
      STACK_POINTER_OFFSET + current_function_outgoing_args_size + frame_size;
+#else /* STACK_GROWS_DOWNWARDS */
+  stackframe_size =
+     STACK_POINTER_OFFSET + current_function_args_size + frame_size;
+  if (current_function_varargs || current_function_stdarg)
+    {
+      stackframe_size += I370_VARARGS_AREA_SIZE;
+    }
+#endif /* STACK_GROWS_DOWNWARDS */
+
   aligned_size = (stackframe_size + 7) >> 3;
   aligned_size <<= 3;
   
-  fprintf (f, "# arg_size=0x%x frame_size=" HOST_WIDE_INT_PRINT_HEX
-	   " aligned size=0x%x\n", 
-     current_function_outgoing_args_size, frame_size, aligned_size);
+  fprintf (f, "# arg_size=0x%x frame_size=0x%x aligned size=0x%x\n",
+     current_function_args_size, frame_size, aligned_size);
+  fprintf (f, "# varargs=%d stdarg=%d rserved area size=0x%x\n",
+     current_function_varargs, current_function_stdarg, I370_VARARGS_AREA_SIZE);
 
-  fprintf (f, "\t.using\t.,r15\n");
+#ifdef STACK_GROWS_DOWNWARDS
+  /* If you want your stack to grow down, you will need to create this piece. */
+#else /* STACK_GROWS_DOWNWARDS */
+  if (i370_enable_pic)
+    {
+      /* Use register 12 as base register for addressing into the data section. */
+      fprintf (f, "# Function %s data segment PIC glue \n"
+                  ".data\n"
+                  "\t.balign 4\n"
+                  "%s:\n"
+                  "\tST\tr12,68(,r11)\n"
+                  "\tL\tr12,12(,r15)\n"
+                  "\tBR\tr12\n"
+                  "\t.short\t0\n"
+                  "\t.long\t%s.textentry\n"
+                  "\t.long\t.LPOOL%d\n"
+                  "\t.long\t%d\n"
+                  "\t.long\t.LPGT%d\n"
+                  "\t.using\t.LPOOL%d,r12\n"
+                  ".previous\n"
+                  "# Function %s prologue \n"
+                  "%s.textentry:\n",
+               mvs_function_name,
+               mvs_function_name, mvs_function_name,
+               mvs_page_num, aligned_size, mvs_page_num, mvs_page_num,
+               mvs_function_name, mvs_function_name);
 
-  /* Branch to exectuable part of prologue.  */
-  fprintf (f, "\tB\t.LFENT%03d\n", function_label_index);
+      /* store multiple registers 13,15,0,...11 at 8 bytes from sp */
+      fprintf (f, "\tSTM\tr13,r11,8(r11)\n");
 
-  /* write the length of the stackframe */
-  fprintf (f, "\t.long\t%d\n", aligned_size);
+      /* load frame, arg pointer from callers top-of-stack */
+      fprintf (f, "\tLR\tr13,r11\n");
 
-  /* FENT == function prologue entry */
-  fprintf (f, "\t.balign 2\n.LFENT%03d:\n",
-              function_label_index);
+      /* bump stack pointer by 20(r15) == stackframe size */
+      fprintf (f, "\tA\tr11,20(,r15)\n");
 
-  /* store multiple registers 14,15,0,...12 at 12 bytes from sp */
-  fprintf (f, "\tSTM\tr14,r12,12(sp)\n");
+      /* 16(r15) == PIC pool pointer (pointer to literals in data section */
+      fprintf (f, "\tL\tr12,16(,r15)\n");
 
-  /* r3 == saved callee stack pointer */
-  fprintf (f, "\tLR\tr3,sp\n");
+      /* r4 will be the pointer to the code page pool for this function */
+      fprintf (f, "\tL\tr4,24(,r15)\n");
+    }
+  else
+    {
+      fprintf (f, "%s:\n"
+                  "# Function prologue\n"
+                  "\t.using\t.,r15\n", mvs_function_name);
 
-  /* 4(r15) == stackframe size */
-  fprintf (f, "\tSL\tsp,4(,r15)\n");
+      /* Branch to exectuable part of prologue. */
+      fprintf (f, "\tB\t.LFENT%06d\n", function_label_index);
 
-  /* r11 points to arg list in callers stackframe; was passed in r2 */
-  fprintf (f, "\tLR\tr11,r2\n");
+      /* write the length of the stackframe */
+      fprintf (f, "\t.long\t%d\n", aligned_size);
 
-  /* store callee stack pointer at 8(sp) */
-  /* fprintf (f, "\tST\tsp,8(,r3)\n ");  wasted cycles, no one uses this ...  */
+      /* write the code page table pointer */
+      fprintf (f, "\t.long\t.LPGT%d\n", mvs_page_num);
 
-  /* backchain -- store caller sp at 4(callee_sp)  */
-  fprintf (f, "\tST\tr3,4(,sp)\n ");
+      fprintf (f, "\t.drop\tr15\n");
 
-  fprintf (f, "\t.drop\tr15\n");
-  /* Place contents of the PSW into r3
-     that is, place the address of "." into r3 */
-  fprintf (f, "\tBASR\tr%d,0\n", BASE_REGISTER);
-  fprintf (f, "\t.using\t.,r%d\n", BASE_REGISTER);
+      /* FENT == function prologue entry */
+      fprintf (f, "\t.balign 2\n.LFENT%06d:\n", function_label_index);
+
+      /* store multiple registers 13,14,...12 at 8 bytes from sp */
+      fprintf (f, "\tSTM\tr13,r12,8(r11)\n");
+
+      /* r13 == callee frame ptr == callee arg ptr == caller stack ptr */
+      fprintf (f, "\tLR\tr13,r11\n");
+
+      /* r11 == callee top-of-stack pointer = caller sp + stackframe size */
+      fprintf (f, "\tA\tr11,4(,r15)\n");
+
+      /* r4 will be the pointer to the code page pool for this function */
+      fprintf (f, "\tL\tr4,8(,r15)\n");
+    }
+#endif /* STACK_GROWS_DOWNWARDS */
+
+  /* r3 will be the base register for this code page.
+     That is, place the address of "." into r3 */
+  fprintf (f, "\tBASR\tr3,0\n");
+  fprintf (f, "\t.using\t.,r3\n");
+  fprintf (f, ".LPG%d:\n", mvs_page_num  );
   function_first = 1;
   function_label_index ++;
 
-  fprintf (f, ".LPG%d:\n", mvs_page_num  );
-  fprintf (f, "\tL\tr%d,=A(.LPGT%d)\n", PAGE_REGISTER, mvs_page_num);
+  /* Store the code page pool off of the frame pointer for easy access. */
+  fprintf (f, "\tST\tr4,0(r13)\n");
   fprintf (f, "# Function code\n");
 
   mvs_free_label_list ();
