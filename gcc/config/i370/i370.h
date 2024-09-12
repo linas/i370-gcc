@@ -3,7 +3,7 @@
    2003 Free Software Foundation, Inc.
    Contributed by Jan Stein (jan@cd.chalmers.se).
    Modified for OS/390 LanguageEnvironment C by Dave Pitts (dpitts@cozx.com)
-   Hacked for Linux-ELF/390 by Linas Vepstas (linas@linas.org)
+   Modified for Linux-ELF/390 by Linas Vepstas (linas@linas.org)
 
 This file is part of GCC.
 
@@ -62,6 +62,10 @@ extern size_t mvs_function_name_length;
 
 #define TARGET_CHAR_INSTRUCTIONS (target_flags & 1)
 
+/* Compile experimental position independent code */
+#define TARGET_PIC (target_flags & 2)
+extern int i370_enable_pic;
+
 /* Default target switches */
 
 #define TARGET_DEFAULT 1
@@ -74,6 +78,8 @@ extern size_t mvs_function_name_length;
 #define TARGET_SWITCHES							\
 { { "char-instructions", 1, N_("Generate char instructions")},            \
   { "no-char-instructions", -1, N_("Do not generate char instructions")}, \
+  { "pickax", 2, "Experimental i370 PIC"}, \
+  { "no-pickax", -2, "Disable experimental i370 PIC"}, \
   { "", TARGET_DEFAULT, 0} }
 
 #define OVERRIDE_OPTIONS  override_options ()
@@ -114,7 +120,7 @@ extern size_t mvs_function_name_length;
 
 /* Boundary (in *bits*) on which stack pointer should be aligned.  */
 
-#define STACK_BOUNDARY 32
+#define STACK_BOUNDARY 64
 
 /* Allocation boundary (in *bits*) for the code of a function.  */
 
@@ -137,6 +143,17 @@ extern size_t mvs_function_name_length;
 
 #define TARGET_FLOAT_FORMAT IBM_FLOAT_FORMAT
 
+/* Define character mapping for cross-compiling.  */
+/* but only define it if really needed, since otherwise it will break builds */
+
+#ifdef TARGET_EBCDIC
+#ifdef HOST_EBCDIC
+#define MAP_CHARACTER(c) ((char)(c))
+#else
+#define MAP_CHARACTER(c) ((char)mvs_map_char (c))
+#endif
+#endif
+
 #ifdef TARGET_HLASM
 /* HLASM requires #pragma map.  */
 #define REGISTER_TARGET_PRAGMAS() c_register_pragma (0, "map", i370_pr_map)
@@ -144,7 +161,7 @@ extern size_t mvs_function_name_length;
 
 /* Define maximum length of page minus page escape overhead.  */
 
-#define MAX_MVS_PAGE_LENGTH 4080
+#define MAX_MVS_PAGE_LENGTH 4068
 
 /* Define special register allocation order desired.  
    Don't fiddle with this.  I did, and I got all sorts of register 
@@ -173,6 +190,7 @@ extern size_t mvs_function_name_length;
 
 #define BASE_REGISTER 3
 #define PAGE_REGISTER 4
+#define PIC_BASE_REGISTER 12
 
 #ifdef TARGET_HLASM
 /* 1 for registers that have pervasive standard uses and are not available
@@ -242,16 +260,31 @@ extern size_t mvs_function_name_length;
 /* ================= */
 #ifdef TARGET_ELF_ABI 
 /* The Linux/ELF ABI uses the same register layout as the 
- * the MVS/OE version, with the following exceptions:
- * -- r12 (rtca) is not used.
+   the MVS/OE version, with the following exceptions:
+   -- r4 is not used; its role is taken by 0(r13)
+   -- r13 is used as a combined argument & frame pointer
+   -- r11 is used to point to the top of the stack.
+   -- r12 is used as a base pointer into the data section
+      but only if i370_enable_pic is true; otherwise we can
+      free up this register.
+
+   Note that the ELF calling convention is radically different
+   than the MVS/OE convention.  In particular, r11 always points
+   to the top of the stack, and r13 always points to the bottom
+   of the stack.  Thus, r13 can be used as a dual arg & frame
+   pointer for all occasions, whereas r11 can be used for alloca
+   and other stack-dynamic allocations.
+
+   XXX Future enhancment possible: When a function doesn't have
+   any args, and doesn't use alloca(), then r11 is not really needed.
  */
 
 #define FIXED_REGISTERS 						\
-{ 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0 }
+{ 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0 }
 /*0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19*/
 
 #define CALL_USED_REGISTERS 						\
-{ 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1 }
+{ 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1 }
 /*0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19*/
 
 #endif /* TARGET_ELF_ABI */
@@ -283,12 +316,20 @@ extern size_t mvs_function_name_length;
   (((MODE1) == SFmode || (MODE1) == DFmode)				\
    == ((MODE2) == SFmode || (MODE2) == DFmode))
 
+/* Mark external references.  */
+
+#define ENCODE_SECTION_INFO(decl)                 \
+  if (DECL_EXTERNAL (decl) && TREE_PUBLIC (decl))          \
+    SYMBOL_REF_FLAG (XEXP (DECL_RTL (decl), 0)) = 1;
+
 /* Specify the registers used for certain standard purposes.
    The values of these macros are register numbers.  */
 
 /* 370 PC isn't overloaded on a register.  */
 
 /* #define PC_REGNUM */
+
+#ifdef TARGET_HLASM
 
 /* Register to use for pushing function arguments.  */
 
@@ -308,6 +349,39 @@ extern size_t mvs_function_name_length;
 /* Base register for access to arguments of the function.  */
 
 #define ARG_POINTER_REGNUM 11
+
+#endif /* TARGET_HLASM */
+
+/* ================= */
+#ifdef TARGET_ELF_ABI
+
+/* Register to use for pushing function arguments.  */
+
+#define STACK_POINTER_REGNUM 11
+
+/* Base register for access to local variables of the function.
+   A separate stack and frame pointer is required for any function
+   that calls alloca() or does other pushing onto the stack. */
+
+#define FRAME_POINTER_REGNUM 13
+
+/* Value should be nonzero if functions must have frame pointers.
+   Zero means the frame pointer need not be set up (and parms may be
+   accessed via the stack pointer) in functions that seem suitable.
+   This is computed in `reload', in reload1.c.  */
+
+#define FRAME_POINTER_REQUIRED 1
+
+/* Function epilogue uses the frame pointer to restore the context */
+#define EXIT_IGNORE_STACK 1
+
+/* Base register for access to arguments of the function.
+   We will use the frame pointer as the arg pointer. */
+
+#define ARG_POINTER_REGNUM 13
+
+#endif /* TARGET_ELF_ABI */
+/* ================= */
 
 /* R10 is register in which static-chain is passed to a function.  
    Static-chaining is done when a nested function references as a global
@@ -450,6 +524,16 @@ enum reg_class
 
 /* ================= */
 #ifdef TARGET_HLASM
+
+/* Define offset from stack pointer, to location where a parm can be
+   pushed.  */
+
+#define STACK_POINTER_OFFSET 148
+
+/* used in i370.md for temp scratch area */
+#define CONVLO "140"
+#define CONVHI "144"
+
 /* #define STACK_GROWS_DOWNWARD */
 
 /* Define this if the nominal address of the stack frame is at the
@@ -471,44 +555,99 @@ enum reg_class
 /* If we generate an insn to push BYTES bytes, this says how many the stack
    pointer really advances by.  On the 370, we have no push instruction.  */
 
-#endif /* TARGET_HLASM */
-
-/* ================= */
-#ifdef TARGET_ELF_ABI 
-
-/* With ELF/Linux, stack is placed at large virtual addrs and grows down.
-   But we want the compiler to generate posistive displacements from the 
-   stack pointer, and so we make the frame lie above the stack.  */
-
-#define STACK_GROWS_DOWNWARD 
-/* #define FRAME_GROWS_DOWNWARD */
-
-/* Offset within stack frame to start allocating local variables at.
-   This is the offset to the BEGINNING of the first local allocated.  */
-
-#define STARTING_FRAME_OFFSET  						\
-     (STACK_POINTER_OFFSET + current_function_outgoing_args_size)
-
-#define INITIAL_FRAME_POINTER_OFFSET(DEPTH) (DEPTH) = STARTING_FRAME_OFFSET
-
-#endif /* TARGET_ELF_ABI */
-/* ================= */
-
-/* #define PUSH_ROUNDING(BYTES) */
+#define FIRST_PARM_OFFSET(FNDECL) 0
 
 /* Accumulate the outgoing argument count so we can request the right
    DSA size and determine stack offset.  */
 
-#define ACCUMULATE_OUTGOING_ARGS 1
+#define ACCUMULATE_OUTGOING_ARGS
+
+#endif /* TARGET_HLASM */
+
+/* ================= */
+#ifdef TARGET_ELF_ABI
+/* Here's the stack layout as currently designed:
+
+   r11 -- top of stack aka stack pointer
+   -4(r11) -- last local (stack) variable)
+   ...          ...
+   88+4*nargs(r13) -- first local (stack) variable.
+   ...          ...
+   92(r13) -- second incoming (callee) argument
+   88(r13) -- first incoming (callee) argument
+   84(r13) -- volatile scratch area
+   80(r13) -- volatile scratch area
+   76(r13) -- not used (frame size)
+   72(r13) -- not used
+   68(r13) -- saved callers r12
+   64(r13) -- saved callers r11
+   ...          ...
+   28(r13) -- saved callers r2
+   24(r13) -- saved callers r1
+   20(r13) -- saved callers r0
+   16(r13) -- saved callers r15
+   12(r13) -- saved callers r14
+   8(r13)  -- saved callers r13
+   4(r13)  -- not used
+   0(r13)  -- code page table pointer
+   r13 -- bottom of stack aka frame pointer aka arg pointer
+
+   Note that this bears superficial similarity to the MVS/OE stack layout,
+   but in fact it is very very different.  In particular, under MVS/OE
+   the roles of r11 and r13 are quite different.
+
+   Note that the use of varargs/stdarg is limited to 512 bytes of
+   of arguments.  This is the price that is paid for freeing up a
+   register and having a more efficient function return.
+*/
+
+/* Define size of the calling convention register save area.
+   This includes room for the 16 GPR's, a saved frame size, and
+   a (floating point math) scratch area */
+#define I370_SAVE_AREA_SIZE 88
+
+/* Define the size of the amount of room reserved for varargs */
+#define I370_VARARGS_AREA_SIZE 512
+
+/* Used in i370.md for temp scratch area. Must be that last two words
+   of the I370_SAVE_AREA. */
+#define CONVLO "80"
+#define CONVHI "84"
 
 /* Define offset from stack pointer, to location where a parm can be
    pushed.  */
 
-#define STACK_POINTER_OFFSET 148
+#define STACK_POINTER_OFFSET I370_SAVE_AREA_SIZE
 
-/* Offset of first parameter from the argument pointer register value.  */
+#define STACK_DYNAMIC_OFFSET(FNDECL) 0
 
-#define FIRST_PARM_OFFSET(FNDECL) 0
+/* Offset within frame to start allocating local variables at.
+   It is the offset to the BEGINNING of the first local allocated.  */
+
+#define STARTING_FRAME_OFFSET                  \
+     ((current_function_varargs || current_function_stdarg) ?    \
+     (I370_SAVE_AREA_SIZE + I370_VARARGS_AREA_SIZE):       \
+     (I370_SAVE_AREA_SIZE + current_function_args_size))
+
+#define INITIAL_FRAME_POINTER_OFFSET(DEPTH) (DEPTH) = STARTING_FRAME_OFFSET
+
+/* Offset of first incoming parameter from the arg ptr register value.  */
+
+#define FIRST_PARM_OFFSET(FNDECL) I370_SAVE_AREA_SIZE
+
+/* The ACCUMULATE_OUTGOING_ARGS flag seems to have some funny side effects
+   that we need.  Specifically, if it is set, then the stack pointer is
+   not bumped when args are placed on the stack, which is just how we want
+   it. */
+#define ACCUMULATE_OUTGOING_ARGS
+
+#endif /* TARGET_ELF_ABI */
+/* ================= */
+
+/* If we generate an insn to push BYTES bytes, this says how many the stack
+   pointer really advances by.  On the 370, we have no push instruction.  */
+
+/* #define PUSH_ROUNDING(BYTES) */
 
 /* 1 if N is a possible register number for function argument passing.
    On the 370, no registers are used in this way.  */
@@ -558,20 +697,20 @@ enum reg_class
 
 #define RETURN_POPS_ARGS(FUNDECL,FUNTYPE,SIZE) 0
 
-/* The FUNCTION_VALUE macro defines how to find the value returned by a 
+/* The FUNCTION_VALUE macro defines how to find the value returned by a
    function.  VALTYPE is the data type of the value (as a tree).
    If the precise function being called is known, FUNC is its FUNCTION_DECL;
-   otherwise, FUNC is NULL.  
+   otherwise, FUNC is NULL.
 
    On the 370 the return value is in R15 or R16.  However,
-   DImode (64-bit ints) scalars need to get returned on the stack, 
+   DImode (64-bit ints) scalars need to get returned on the stack,
    with r15 pointing to the location.  To accomplish this, we define
    the RETURN_IN_MEMORY macro to be true for both blockmode (structures)
    and the DImode scalars.
  */
 
 #define RET_REG(MODE)	\
-    (((MODE) == DCmode || (MODE) == SCmode \
+    (((MODE) == DCmode || (MODE) == SCmode || (MODE) == TFmode \
       || (MODE) == DFmode || (MODE) == SFmode) ? 16 : 15)
 
 #define FUNCTION_VALUE(VALTYPE, FUNC)  					\
@@ -646,6 +785,12 @@ enum reg_class
 
 /* Addressing modes, and classification of registers for them.  */
 
+/* #define HAVE_POST_INCREMENT */
+/* #define HAVE_POST_DECREMENT */
+
+/* #define HAVE_PRE_DECREMENT */
+/* #define HAVE_PRE_INCREMENT */
+
 /* These assume that REGNO is a hard or pseudo reg number.  They give
    nonzero only if REGNO is a hard reg of the suitable class or a pseudo
    reg currently allocated to a suitable hard reg.
@@ -692,6 +837,9 @@ enum reg_class
   || (GET_CODE (X) == CONST						\
 	  && GET_CODE (XEXP (XEXP (X, 0), 0)) == SYMBOL_REF		\
 	  && !SYMBOL_REF_EXTERNAL_P (XEXP (XEXP (X, 0), 0))))
+
+/* XXX FIXME: Maybe last line should be
+   && !SYMBOL_REF_FLAG (XEXP (XEXP (X, 0), 0))))  ??? */
 
 /* Nonzero if the constant value X is a legitimate general operand.
    It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
@@ -740,7 +888,7 @@ enum reg_class
    that wants to use this address.
 
    The other macros defined here are used only in GO_IF_LEGITIMATE_ADDRESS,
-   except for CONSTANT_ADDRESS_P which is actually machine-independent.  
+   except for CONSTANT_ADDRESS_P which is actually machine-independent.
 */
 
 #define COUNT_REGS(X, REGS, FAIL)					\
@@ -841,6 +989,10 @@ enum reg_class
 
 /* #define CASE_VECTOR_PC_RELATIVE */
 
+/* Specify the tree operation to be used to convert reals to integers.  */
+
+#define IMPLICIT_FIX_EXPR FIX_ROUND_EXPR
+
 /* Define this if fixuns_trunc is the same as fix_trunc.  */
 
 #define FIXUNS_TRUNC_LIKE_FIX_TRUNC
@@ -848,6 +1000,10 @@ enum reg_class
 /* We use "unsigned char" as default.  */
 
 #define DEFAULT_SIGNED_CHAR 0
+
+/* This is the kind of divide that is easiest to do in the general case.  */
+
+#define EASY_DIV_EXPR TRUNC_DIV_EXPR
 
 /* Max number of bytes we can move from memory to memory in one reasonably
    fast instruction.  */
