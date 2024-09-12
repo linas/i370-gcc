@@ -704,7 +704,7 @@ enum reg_class
  */
 
 #define RET_REG(MODE)	\
-    (((MODE) == DCmode || (MODE) == SCmode || (MODE) == TFmode \
+    (((MODE) == DCmode || (MODE) == SCmode \
       || (MODE) == DFmode || (MODE) == SFmode) ? 16 : 15)
 
 #define FUNCTION_VALUE(VALTYPE, FUNC)  					\
