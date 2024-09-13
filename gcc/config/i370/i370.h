@@ -161,7 +161,7 @@ extern int i370_enable_pic;
 
 /* Define maximum length of page minus page escape overhead.  */
 
-#define MAX_MVS_PAGE_LENGTH 4068
+#define MAX_MVS_PAGE_LENGTH 4060
 
 /* Define special register allocation order desired.  
    Don't fiddle with this.  I did, and I got all sorts of register 

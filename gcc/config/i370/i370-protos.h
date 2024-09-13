@@ -46,7 +46,6 @@ extern int mvs_need_alias (const char *);
 extern int mvs_get_alias (const char *, char *);
 extern int mvs_check_alias (const char *, char *);
 extern void check_label_emit (void);
-extern void mvs_free_label_list (void);
 
 extern void i370_pr_map (struct cpp_reader *);
 

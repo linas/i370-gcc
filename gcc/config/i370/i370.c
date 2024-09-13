@@ -215,13 +215,8 @@ int i370_enable_pic = 1;
   */
 
 void
-override_options ()
+override_options (void)
 {
-  /* We're 370 floating point, not IEEE floating point.  */
-  memset (real_format_for_mode, 0, sizeof real_format_for_mode);
-  REAL_MODE_FORMAT (SFmode) = &i370_single_format;
-  REAL_MODE_FORMAT (DFmode) = &i370_double_format;
-
 #ifdef TARGET_ELF_ABI
   /* Override CALL_USED_REGISTERS & FIXED_REGISTERS
      PIC requires r12, otherwise its free */
@@ -234,6 +229,11 @@ override_options ()
       fix_register ("r12", 0, 0);
     }
 #endif /* TARGET_ELF_ABI */
+
+  /* We're 370 floating point, not IEEE floating point.  */
+  memset (real_format_for_mode, 0, sizeof real_format_for_mode);
+  REAL_MODE_FORMAT (SFmode) = &i370_single_format;
+  REAL_MODE_FORMAT (DFmode) = &i370_double_format;
 }
 
 /* ===================================================== */
@@ -276,15 +276,17 @@ i370_branch_dest (rtx branch)
   int dest_uid;
   int dest_addr;
 
-  /* first, compute the estimated address of the branch target */
+  /* First, compute the estimated address of the branch target. */
   if (GET_CODE (dest) == IF_THEN_ELSE)
     {
-      rtx taken = XEXP (dest, 1);
-      if (GET_CODE (taken) == PC)
-          dest = XEXP (dest, 2);
+      if (GET_CODE (XEXP (dest, 1)) == LABEL_REF)
+        dest = XEXP (dest, 1);
       else
-          dest = taken;
+        dest = XEXP (dest, 2);
     }
+
+  if (GET_CODE(dest) != LABEL_REF)
+    abort();
 
   dest = XEXP (dest, 0);
   dest_uid = INSN_UID (dest);
@@ -331,8 +333,8 @@ i370_short_branch (rtx insn)
       base_offset += mvs_page_code + mvs_page_lit;
     }
 
-  /* make a conservative estimate of room left on page */
-  if ((4060 >base_offset) && ( 0 < base_offset)) return 1;
+  /* Make a conservative estimate of room left on page. */
+  if ((MAX_MVS_PAGE_LENGTH >base_offset) && ( 0 < base_offset)) return 1;
   return 0;
 }
 
@@ -660,7 +662,7 @@ mvs_add_label (id)
 
   fwd_distance = lp->label_last_ref - lp->label_addr;
 
-  if (mvs_page_code + 2 * fwd_distance + mvs_page_lit < 4060) return;
+  if (mvs_page_code + 2 * fwd_distance + mvs_page_lit < MAX_MVS_PAGE_LENGTH) return;
 
   mvs_need_base_reload ++;
 }
@@ -717,8 +719,8 @@ mvs_get_label_page(int id)
 /* The label list for the current page freed by linking the list onto the free
    label element chain.  */
 
-void
-mvs_free_label_list ()
+static void
+mvs_free_label_list (void)
 {
 
   if (label_anchor)
@@ -742,9 +744,7 @@ mvs_free_label_list ()
 
 #ifdef TARGET_HLASM
 int
-mvs_check_page (file, code, lit)
-     FILE *file;
-     int code, lit;
+mvs_check_page (FILE *file, int code, int lit)
 {
   if (file)
     assembler_source = file;
@@ -776,9 +776,7 @@ mvs_check_page (file, code, lit)
 
 #ifdef TARGET_ELF_ABI
 int
-mvs_check_page (file, code, lit)
-     FILE *file;
-     int code, lit;
+mvs_check_page (FILE *file, int code, int lit)
 {
   if (file)
     assembler_source = file;
@@ -860,8 +858,7 @@ mvs_check_page (file, code, lit)
    NAME is the name of the current function.  */
 
 int
-mvs_function_check (name)
-     const char *name;
+mvs_function_check (const char *name)
 {
   int lower, middle, upper;
   int i;
@@ -886,16 +883,15 @@ mvs_function_check (name)
 
 #ifdef LONGEXTERNAL
 static int
-mvs_hash_alias (key)
-     const char *key;
+mvs_hash_alias (const char *key)
 {
   int h;
   int i;
   int l = strlen (key);
 
-  h = key[0];
+  h = (unsigned char) MAP_OUTCHAR(key[0]);
   for (i = 1; i < l; i++)
-    h = ((h * MVS_SET_SIZE) + key[i]) % MVS_HASH_PRIME;
+    h = ((h * MVS_SET_SIZE) + (unsigned char) MAP_OUTCHAR(key[i])) % MVS_HASH_PRIME;
   return (h);
 }
 #endif
@@ -903,10 +899,7 @@ mvs_hash_alias (key)
 /* Add the alias to the current alias list.  */
 
 void
-mvs_add_alias (realname, aliasname, emitted)
-     const char *realname;
-     const char *aliasname;
-     int   emitted;
+mvs_add_alias (const char *realname, const char *aliasname, int emitted)
 {
   alias_node_t *ap;
 
@@ -935,8 +928,7 @@ mvs_add_alias (realname, aliasname, emitted)
      3. Is mixed case */
 
 int
-mvs_need_alias (realname)
-      const char *realname;
+mvs_need_alias (const char *realname)
 {
    int i, j = strlen (realname);
 
@@ -976,9 +968,7 @@ mvs_need_alias (realname)
    If 1 is returned then it's in the alias list, 0 if it was not */
 
 int
-mvs_get_alias (realname, aliasname)
-     const char *realname;
-     char *aliasname;
+mvs_get_alias (const char *realname, char *aliasname)
 {
 #ifdef LONGEXTERNAL
   alias_node_t *ap;
@@ -1007,7 +997,14 @@ mvs_get_alias (realname, aliasname)
       return 1;
     }
 #else
-  if (strlen (realname) > MAX_MVS_LABEL_SIZE)
+  p = strchr(realname, MVS_NAMESEP);
+  if (p != NULL)
+    {
+      strcpy(aliasname, "@@");
+      strncpy(aliasname + 2, p + 1, MAX_MVS_LABEL_SIZE - 2);
+      return 1;
+    }
+  else if (strlen (realname) > MAX_MVS_LABEL_SIZE)
     {
       strncpy (aliasname, realname, MAX_MVS_LABEL_SIZE);
       aliasname[MAX_MVS_LABEL_SIZE] = '\0';
@@ -1021,9 +1018,7 @@ mvs_get_alias (realname, aliasname)
    If 1 is returned then it's in the alias list, 2 it was emitted  */
 
 int
-mvs_check_alias (realname, aliasname)
-     const char *realname;
-     char *aliasname;
+mvs_check_alias (const char *realname, char *aliasname)
 {
 #ifdef LONGEXTERNAL
   alias_node_t *ap;
@@ -1072,14 +1067,12 @@ mvs_check_alias (realname, aliasname)
 /* defines and functions specific to the gas assembler */
 #ifdef TARGET_ELF_ABI
 
-/* Check for C/370 runtime function, they don't use standard calling
-   conventions.  True is returned if the function is in the table.
-   NAME is the name of the current function.  */
-/* no special calling conventions (yet ??) */
+/* Check for non-standard calling conventions.
+   NAME is the name of the current function.
+   The Linux/ELF target has no special calling conventions */
 
 int
-mvs_function_check (name)
-     const char *name ATTRIBUTE_UNUSED;
+mvs_function_check (const char *name ATTRIBUTE_UNUSED)
 {
    return 0;
 }
@@ -1093,9 +1086,7 @@ mvs_function_check (name)
    MODE is the current operation mode.  */
 
 int
-s_operand (op, mode)
-     register rtx op;
-     enum machine_mode mode;
+s_operand (register rtx op, enum machine_mode mode)
 {
   extern int volatile_ok;
   register enum rtx_code code = GET_CODE (op);
@@ -1128,9 +1119,7 @@ s_operand (op, mode)
    MODE is the current operation mode.  */
 
 int
-r_or_s_operand (op, mode)
-     register rtx op;
-     enum machine_mode mode;
+r_or_s_operand (register rtx op, enum machine_mode mode)
 {
   extern int volatile_ok;
   register enum rtx_code code = GET_CODE (op);
@@ -1176,11 +1165,11 @@ r_or_s_operand (op, mode)
    arithmetic insn's set the condition code as well.
 
    The unsigned_jump_follows_p() routine  returns a 1 if the next jump
-   is unsigned.  INSN is the current instruction.  */
+   is unsigned.  INSN is the current instruction. We err on the side
+   of assuming unsigned, so there are a lot of return 1. */
 
 int
-unsigned_jump_follows_p (insn)
-     register rtx insn;
+unsigned_jump_follows_p (register rtx insn)
 {
   rtx orig_insn = insn;
   while (1)
@@ -1194,6 +1183,7 @@ unsigned_jump_follows_p (insn)
       if (GET_CODE (insn) != JUMP_INSN) continue;
 
       tmp_insn = PATTERN (insn);
+      if (!tmp_insn) continue;
       if (GET_CODE (tmp_insn) != SET) continue;
 
       if (GET_CODE (XEXP (tmp_insn, 0)) != PC) continue;
@@ -1215,10 +1205,7 @@ unsigned_jump_follows_p (insn)
    objects when TARGET_HLASM is defined.  */
 
 static bool
-i370_hlasm_assemble_integer (x, size, aligned_p)
-     rtx x;
-     unsigned int size;
-     int aligned_p;
+i370_hlasm_assemble_integer (rtx x, unsigned int size, int aligned_p)
 {
   const char *int_format = NULL;
 
@@ -1267,9 +1254,7 @@ i370_hlasm_assemble_integer (x, size, aligned_p)
    which registers should not be saved even if used.  */
 
 static void
-i370_output_function_prologue (f, l)
-     FILE *f;
-     HOST_WIDE_INT l;
+i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
 {
 #if MACROPROLOGUE == 1
   fprintf (f, "* Function %s prologue\n", mvs_function_name);
@@ -1435,9 +1420,7 @@ i370_output_function_prologue (f, l)
 }
 
 static void
-i370_globalize_label (stream, name)
-     FILE *stream;
-     const char *name;
+i370_globalize_label (FILE *stream, const char *name)
 {
   char temp[MAX_MVS_LABEL_SIZE + 1];
   if (mvs_check_alias (name, temp) == 2)
@@ -1456,9 +1439,7 @@ i370_globalize_label (stream, name)
    adjustments before returning.  */
 
 static void
-i370_output_function_epilogue (file, l)
-     FILE *file;
-     HOST_WIDE_INT l ATTRIBUTE_UNUSED;
+i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
 {
   int i;
 
@@ -1498,7 +1479,7 @@ i370_file_start ()
 }
 
 static void
-i370_file_end ()
+i370_file_end (void)
 {
   fputs ("\tEND\n", asm_out_file);
 }
@@ -1534,9 +1515,7 @@ i370_file_end ()
  */
 
 static void
-i370_output_function_prologue (f, frame_size)
-     FILE *f;
-     HOST_WIDE_INT frame_size;
+i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
 {
   static int function_label_index = 1;
   static int function_first = 0;
@@ -1724,17 +1703,14 @@ i370_file_start ()
 }
 
 static void
-i370_file_end ()
+i370_file_end (void)
 {
   // fputs ("\tEND\n", asm_out_file);
 }
 #endif /* TARGET_ELF_ABI */
 
 static void
-i370_internal_label (stream, prefix, labelno)
-     FILE *stream;
-     const char *prefix;
-     unsigned long labelno;
+i370_internal_label (FILE *stream, const char *prefix, unsigned long labelno)
 {
   if (!strcmp (prefix, "L"))
     mvs_add_label(labelno);
@@ -1743,11 +1719,7 @@ i370_internal_label (stream, prefix, labelno)
 }
 
 static bool
-i370_rtx_costs (x, code, outer_code, total)
-     rtx x;
-     int code;
-     int outer_code ATTRIBUTE_UNUSED;
-     int *total;
+i370_rtx_costs (rtx x, int code, int outer_code ATTRIBUTE_UNUSED, int *total)
 {
   switch (code)
     {
