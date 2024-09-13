@@ -24,7 +24,7 @@ Boston, MA 02111-1307, USA.  */
 
 #define TARGET_VERSION fprintf (stderr, " (i370 GNU/Linux with ELF)");
 
-/* Specify that we're generating code for a Linux port to 370 */
+/* Specify that we're generating code for a Linux port to System/370 */
 
 #define TARGET_ELF_ABI
 
