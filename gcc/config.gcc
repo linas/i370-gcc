@@ -187,7 +187,6 @@ md_file=
 case ${target} in
  d30v-* | \
  dsp16xx-* | \
- i370-* | \
  i960-* | \
  i?86-moss-msdos | i?86-*-moss* | \
  i?86-ncr-sysv4* | \
