@@ -248,9 +248,8 @@ override_options ()
 
 /* Return the destination address of a branch.  */
 
-int
-i370_branch_dest (branch)
-     rtx branch;
+static int
+i370_branch_dest (rtx branch)
 {
   rtx dest = SET_SRC (PATTERN (branch));
   int dest_uid;
@@ -260,6 +259,7 @@ i370_branch_dest (branch)
   if (GET_CODE (dest) == IF_THEN_ELSE)
     dest = XEXP (dest, 1);
   dest = XEXP (dest, 0);
+
   dest_uid = INSN_UID (dest);
   dest_addr = INSN_ADDRESSES (dest_uid);
 
@@ -277,9 +277,8 @@ i370_branch_dest (branch)
   return dest_addr;
 }
 
-int
-i370_branch_length (insn)
-     rtx insn;
+static int
+i370_branch_length (rtx insn)
 {
   int here, there;
   here = INSN_ADDRESSES (INSN_UID (insn));
@@ -289,8 +288,7 @@ i370_branch_length (insn)
 
 
 int
-i370_short_branch (insn)
-     rtx insn;
+i370_short_branch (rtx insn)
 {
   int base_offset;
 

@@ -27,8 +27,6 @@ Boston, MA 02111-1307, USA.  */
 extern void override_options (void);
 
 #ifdef RTX_CODE
-extern int i370_branch_dest (rtx);
-extern int i370_branch_length (rtx);
 extern int i370_short_branch (rtx);
 extern int s_operand (rtx, enum machine_mode);
 extern int r_or_s_operand (rtx, enum machine_mode);
