@@ -324,13 +324,13 @@ i370_short_branch (rtx insn)
     {
       base_offset += mvs_page_code;
     }
-  else 
+  else
     {
       /* avoid bumping into lit pool; use 2x to estimate max possible lits */
       base_offset *= 2;
       base_offset += mvs_page_code + mvs_page_lit;
     }
-  
+
   /* make a conservative estimate of room left on page */
   if ((4060 >base_offset) && ( 0 < base_offset)) return 1;
   return 0;
@@ -338,13 +338,13 @@ i370_short_branch (rtx insn)
 
 /* The i370_label_scan() routine is supposed to loop over
    all labels and label references in a compilation unit,
-   and determine whether all label refs appear on the same 
-   code page as the label. If they do, then we can avoid 
+   and determine whether all label refs appear on the same
+   code page as the label. If they do, then we can avoid
    a reload of the base register for that label.
-  
-   Note that the instruction addresses used here are only 
+
+   Note that the instruction addresses used here are only
    approximate, and make the sizes of the jumps appear
-   farther apart then they will actually be.  This makes 
+   farther apart then they will actually be.  This makes
    this code far more conservative than it needs to be.
  */
 
@@ -356,8 +356,8 @@ i370_short_branch (rtx insn)
 	if (addr > lp -> label_last_ref) lp->label_last_ref = addr;	\
 }
 
-static void 
-i370_label_scan () 
+static void
+i370_label_scan ()
 {
    rtx insn;
    label_node_t *lp;
@@ -382,11 +382,11 @@ i370_label_scan ()
            lp -> label_addr = here;
 #if 0
            /* Supposedly, labels are supposed to have circular
-              lists of label-refs that reference them, 
+              lists of label-refs that reference them,
               setup in flow.c, but this does not appear to be the case.  */
            rtx labelref = LABEL_REFS (insn);
            rtx ref = labelref;
-           do 
+           do
              {
                rtx linsn = CONTAINING_INSN(ref);
                ref =  LABEL_NEXTREF(ref);
@@ -401,11 +401,11 @@ i370_label_scan ()
            /* If there is no label for this jump, then this
               had better be a ADDR_VEC or an ADDR_DIFF_VEC
               and there had better be a vector of labels.  */
-           if (!label) 
+           if (!label)
              {
                int j;
                rtx body = PATTERN (insn);
-               if (ADDR_VEC == GET_CODE(body)) 
+               if (ADDR_VEC == GET_CODE(body))
                  {
                     for (j=0; j < XVECLEN (body, 0); j++)
                       {
@@ -430,13 +430,13 @@ i370_label_scan ()
    to a place where we need to reload the base reg.  So really,
    we need to examing both labels, and compare thier values
    to the current basereg value.
-  
+
    More generally, this brings up a troubling issue overall:
-   what happens if a tablejump is split across two pages? I do 
+   what happens if a tablejump is split across two pages? I do
    not beleive that this case is handled correctly at all, and
    can only lead to horrible results if this were to occur.
-  
-   However, the current situation is not any worse than it was 
+
+   However, the current situation is not any worse than it was
    last week, and so we punt for now.  */
 
                     debug_rtx (insn);
@@ -446,13 +446,13 @@ i370_label_scan ()
                     /* finished with the vector go do next insn */
                     continue;
                  }
-               else 
+               else
                  {
 /* XXX hack alert.
    Compiling the exception handling (L_eh) in libgcc2.a will trip
    up right here, with something that looks like
    (set (pc) (mem:SI (plus:SI (reg/v:SI 1 r1) (const_int 4))))
-      {indirect_jump} 
+      {indirect_jump}
    I'm not sure of what leads up to this, but it looks like
    the makings of a long jump which will surely get us into trouble
    because the base & page registers don't get reloaded.  For now
@@ -479,7 +479,7 @@ i370_label_scan ()
       else
       if (INSN == code)
        {
-         if ('i' == GET_RTX_CLASS (code)) 
+         if ('i' == GET_RTX_CLASS (code))
            {
               rtx note;
               for (note = REG_NOTES (insn); note;  note = XEXP(note,1))
@@ -501,7 +501,7 @@ i370_label_scan ()
 
 /* Emit reload of base register if indicated.  This is to eliminate multiple
    reloads when several labels are generated pointing to the same place
-   in the code.  
+   in the code.
 
    The table of base register values is created at the end of the function.
    The MVS/OE/USS/HLASM version keeps this table in the text section, and
@@ -635,8 +635,8 @@ mvs_add_label (id)
 
   /* OK, we just saw the label.  Determine if this label
    * needs a reload of the base register */
-  if ((-1 != lp->first_ref_page) && 
-      (lp->first_ref_page != mvs_page_num)) 
+  if ((-1 != lp->first_ref_page) &&
+      (lp->first_ref_page != mvs_page_num))
     {
       /* Yep; the first label_ref was on a different page.  */
       mvs_need_base_reload ++;
@@ -646,12 +646,12 @@ mvs_add_label (id)
   /* Hmm.  Try to see if the estimated address of the last
      label_ref is on the current page.  If it is, then we
      don't need a base reg reload.  Note that this estimate
-     is very conservatively handled; we'll tend to have 
+     is very conservatively handled; we'll tend to have
      a good bit more reloads than actually needed.  Someday,
      we should tighten the estimates (which are driven by
      the (set_att "length") insn attibute.
-    
-     Currently, we estimate that number of page literals 
+
+     Currently, we estimate that number of page literals
      same as number of insns, which is a vast overestimate,
      esp that the estimate of each insn size is its max size.  */
 
@@ -666,7 +666,7 @@ mvs_add_label (id)
 }
 
 /* Check to see if the label is in the list and in the current
-   page.  If not found, we have to make worst case assumption 
+   page.  If not found, we have to make worst case assumption
    that label will be on a different page, and thus will have to
    generate a load and branch on register.  This is rather
    ugly for forward-jumps, but what can we do? For backward
@@ -681,22 +681,22 @@ mvs_check_label (id)
 
   for (lp = label_anchor; lp; lp = lp->label_next)
     {
-      if (lp->label_id == id) 
+      if (lp->label_id == id)
         {
-          if (lp->label_page == mvs_page_num) 
+          if (lp->label_page == mvs_page_num)
             {
                return 1;
-            } 
-          else 
+            }
+          else
             {
 	       return 0;
-            } 
+            }
         }
     }
   return 0;
 }
 
-/* Get the page on which the label sits.  This will be used to 
+/* Get the page on which the label sits.  This will be used to
    determine is a register reload is really needed.  */
 
 #if 0
@@ -921,7 +921,7 @@ mvs_add_alias (realname, aliasname, emitted)
       warning ("alias name is too long - alias ignored");
       return;
     }
-      
+
   strcpy (ap->real_name, realname);
   strcpy (ap->alias_name, aliasname);
   ap->alias_emitted = emitted;
@@ -972,7 +972,7 @@ mvs_need_alias (realname)
    return 0;
 }
 
-/* Get the alias from the list. 
+/* Get the alias from the list.
    If 1 is returned then it's in the alias list, 0 if it was not */
 
 int
@@ -1017,7 +1017,7 @@ mvs_get_alias (realname, aliasname)
   return 0;
 }
 
-/* Check to see if the alias is in the list. 
+/* Check to see if the alias is in the list.
    If 1 is returned then it's in the alias list, 2 it was emitted  */
 
 int
@@ -1032,9 +1032,9 @@ mvs_check_alias (realname, aliasname)
     {
       if (!strcmp (ap->real_name, realname))
 	{
-	  int rc = (ap->alias_emitted == 1) ? 1 : 2; 
+	  int rc = (ap->alias_emitted == 1) ? 1 : 2;
 	  strcpy (aliasname, ap->alias_name);
-	  ap->alias_emitted = 1; 
+	  ap->alias_emitted = 1;
 	  return rc;
 	}
     }
@@ -1163,19 +1163,19 @@ r_or_s_operand (op, mode)
    gcc is built around the assumption that branches are signed
    or unsigned, whereas the 370 doesn't care; its the compares that
    are signed or unsigned.  Thus, we need to somehow know if we
-   need to do a signed or an unsigned compare, and we do this by 
+   need to do a signed or an unsigned compare, and we do this by
    looking ahead in the instruction sequence until we find a jump.
-   We then note whether this jump is signed or unsigned, and do the 
+   We then note whether this jump is signed or unsigned, and do the
    compare appropriately.  Note that we have to scan ahead indefinitley,
-   as the gcc optimizer may insert any number of instructions between 
+   as the gcc optimizer may insert any number of instructions between
    the compare and the jump.
-  
-   Note that using conditional branch expanders seems to be be a more 
-   elegant/correct way of doing this.   See, for instance, the Alpha 
+
+   Note that using conditional branch expanders seems to be be a more
+   elegant/correct way of doing this.   See, for instance, the Alpha
    cmpdi and bgt patterns.  Note also that for the i370, various
    arithmetic insn's set the condition code as well.
 
-   The unsigned_jump_follows_p() routine  returns a 1 if the next jump 
+   The unsigned_jump_follows_p() routine  returns a 1 if the next jump
    is unsigned.  INSN is the current instruction.  */
 
 int
@@ -1183,28 +1183,28 @@ unsigned_jump_follows_p (insn)
      register rtx insn;
 {
   rtx orig_insn = insn;
-  while (1) 
+  while (1)
     {
       register rtx tmp_insn;
       enum rtx_code coda;
-  
+
       insn = NEXT_INSN (insn);
       if (!insn) fatal_insn ("internal error--no jump follows compare:", orig_insn);
-  
+
       if (GET_CODE (insn) != JUMP_INSN) continue;
-    
+
       tmp_insn = PATTERN (insn);
       if (GET_CODE (tmp_insn) != SET) continue;
-    
+
       if (GET_CODE (XEXP (tmp_insn, 0)) != PC) continue;
-    
+
       tmp_insn = XEXP (tmp_insn, 1);
       if (GET_CODE (tmp_insn) != IF_THEN_ELSE) continue;
-    
+
       /* if we got to here, this instruction is a jump.  Is it signed? */
       tmp_insn = XEXP (tmp_insn, 0);
       coda = GET_CODE (tmp_insn);
-  
+
       return coda != GE && coda != GT && coda != LE && coda != LT;
     }
 }
@@ -1420,7 +1420,7 @@ i370_output_function_prologue (f, l)
 #endif /* !LE370 */
 #endif /* MACROPROLOGUE */
   fprintf (f, "PG%d\tEQU\t*\n", mvs_page_num );
-  fprintf (f, "\tLR\t11,1\n"); 
+  fprintf (f, "\tLR\t11,1\n");
   fprintf (f, "\tL\t%d,=A(PGT%d)\n", PAGE_REGISTER, mvs_page_num);
   fprintf (f, "* Function %s code\n", mvs_function_name);
 
