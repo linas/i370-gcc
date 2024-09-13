@@ -35,6 +35,10 @@ Boston, MA 02111-1307, USA.  */
 
 #define LIBGCC_SPEC "libgcc.a%s"
 
+/* Options for newlib. Even though IEEE floats are currently broken. */
+#define __IEEE_BIG_ENDIAN
+#define _POSIX_THREADS
+
 #ifdef SOME_FUTURE_DAY
  
 #define CPP_SPEC "%{posix: -D_POSIX_SOURCE} %(cpp_sysv) %(cpp_endian_big) \
