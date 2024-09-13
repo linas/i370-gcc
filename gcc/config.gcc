@@ -912,7 +912,7 @@ i370-*-mvs*)
 	;;
 i370-*-linux*)
 	tm_file="dbxelf.h elfos.h svr4.h linux.h i370/linux.h i370/i370.h"
-	tmake_file="i370/t-i370-elf t-slibgcc-elf-ver t-linux"
+	tmake_file="i370/t-i370-elf t-slibgcc-elf-ver t-slibgcc-nolc-override t-linux"
 	;;
 i[34567]86-*-darwin*)
 	tm_file="${tm_file} i386/darwin.h"
