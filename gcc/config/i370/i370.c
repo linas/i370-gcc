@@ -238,15 +238,36 @@ override_options ()
 
 /* ===================================================== */
 /* The following three routines are used to determine whether
-   forward branch is on this page, or is a far jump.  We use
+   a branch target is on this page, or is a far jump.  We use
    the "length" attr on an insn [(set_atter "length" "4")]
    to store the largest possible code length that insn
-   could have.  This gives us a hint of the address of a
+   could have.  This gives us a hint of the address of the
    branch destination, and from that, we can work out
    the length of the jump, and whether its on page or not.
  */
 
-/* Return the destination address of a branch.  */
+/* Return the destination address of a branch.
+   This handles one of three different forms (found in i370.md)
+      (define_insn "jump"
+         [(set (pc) (label_ref (match_operand 0 "" "")))]
+   where the branch target is right there, and two different
+   if_then_else forms, with (pc) either first or second. For example:
+
+      (define_insn "beq"
+        [(set (pc)
+           (if_then_else (eq (cc0) (const_int 0))
+               (label_ref (match_operand 0 "" ""))
+               (pc)))]
+
+   while the negated form has
+
+       (if_then_else (eq (cc0) (const_int 0))
+            (pc)
+            (label_ref (match_operand 0 "" ""))))
+
+  So either the forst or the second target is (pc).
+  We want the other one.
+  */
 
 static int
 i370_branch_dest (rtx branch)
@@ -257,9 +278,15 @@ i370_branch_dest (rtx branch)
 
   /* first, compute the estimated address of the branch target */
   if (GET_CODE (dest) == IF_THEN_ELSE)
-    dest = XEXP (dest, 1);
-  dest = XEXP (dest, 0);
+    {
+      rtx taken = XEXP (dest, 1);
+      if (GET_CODE (taken) == PC)
+          dest = XEXP (dest, 2);
+      else
+          dest = taken;
+    }
 
+  dest = XEXP (dest, 0);
   dest_uid = INSN_UID (dest);
   dest_addr = INSN_ADDRESSES (dest_uid);
 
