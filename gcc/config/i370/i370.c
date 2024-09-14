@@ -897,9 +897,15 @@ mvs_check_page (FILE *file, int code, int lit)
 
   if (mvs_page_code + code + mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
     {
-      fprintf (assembler_source, "\tB\tPGE%d\n", mvs_page_num);
-      fprintf (assembler_source, "\tDS\t0F\n");
-      fprintf (assembler_source, "\tLTORG\n");
+      /* no need to dump literals if we're at the end of
+         a case statement - they will already have been
+         dumped prior to the jump table generation. */
+      if (mvs_case_code == 0)
+        {
+          fprintf (assembler_source, "\tB\tPGE%d\n", mvs_page_num);
+          fprintf (assembler_source, "\tDS\t0F\n");
+          fprintf (assembler_source, "\tLTORG\n");
+        }
       fprintf (assembler_source, "\tDS\t0F\n");
       fprintf (assembler_source, "PGE%d\tEQU\t*\n", mvs_page_num);
       fprintf (assembler_source, "\tDROP\t%d\n", BASE_REGISTER);
@@ -907,8 +913,8 @@ mvs_check_page (FILE *file, int code, int lit)
       /* Safe to use BASR not BALR, since we are
        * not switching addressing mode here ...  */
       fprintf (assembler_source, "\tBASR\t%d,0\n", BASE_REGISTER);
-      fprintf (assembler_source, "PG%d\tEQU\t*\n", mvs_page_num);
       fprintf (assembler_source, "\tUSING\t*,%d\n", BASE_REGISTER);
+      fprintf (assembler_source, "PG%d\tEQU\t*\n", mvs_page_num);
       mvs_page_code = code;
       mvs_page_lit = lit;
       return 1;
@@ -1006,6 +1012,7 @@ mvs_check_page (FILE *file, int code, int lit)
 int
 mvs_function_check (const char *name)
 {
+#ifdef TARGET_LE
   int lower, middle, upper;
   int i;
 
@@ -1022,12 +1029,13 @@ mvs_function_check (const char *name)
       else
 	lower = middle + 1;
     }
+#endif
   return 0;
 }
 
 /* Generate a hash for a given key.  */
 
-#ifdef LONGEXTERNAL
+#ifdef TARGET_ALIASES
 static int
 mvs_hash_alias (const char *key)
 {
@@ -1049,6 +1057,12 @@ mvs_add_alias (const char *realname, const char *aliasname, int emitted)
 {
   alias_node_t *ap;
 
+#ifdef DEBUG
+  printf("mvs_add_alias: realname(%d) = '%s'\n", strlen(realname), realname);
+  printf("   aliasname(%d) = '%s'\n", strlen(aliasname), aliasname);
+  printf("   emitted = %d\n", emitted);
+#endif
+
   ap = (alias_node_t *) xmalloc (sizeof (alias_node_t));
   if (strlen (realname) > MAX_LONG_LABEL_SIZE)
     {
@@ -1064,6 +1078,7 @@ mvs_add_alias (const char *realname, const char *aliasname, int emitted)
   strcpy (ap->real_name, realname);
   strcpy (ap->alias_name, aliasname);
   ap->alias_emitted = emitted;
+  ap->alias_used = 0 /* FALSE */;
   ap->alias_next = alias_anchor;
   alias_anchor = ap;
 }
@@ -1078,6 +1093,13 @@ mvs_need_alias (const char *realname)
 {
    int i, j = strlen (realname);
 
+#ifdef DEBUG
+  printf("mvs_need_alias: realname(%d) = '%s'\n", strlen(realname), realname);
+#endif
+
+#if defined(TARGET_DIGNUS) || defined(TARGET_PDPMAC)
+   return 1;
+#else
    if (mvs_function_check (realname))
      return 0;
 #if 0
@@ -1108,6 +1130,52 @@ mvs_need_alias (const char *realname)
      }
 
    return 0;
+#endif
+}
+
+/* Mark an alias as used as an external.  */
+
+int
+mvs_mark_alias (const char *realname)
+{
+  alias_node_t *ap;
+
+#ifdef DEBUG
+  printf("mvs_mark_alias: realname(%d) = '%s'\n", strlen(realname), realname);
+#endif
+
+  for (ap = alias_anchor; ap; ap = ap->alias_next)
+    {
+      if (!strcmp (ap->real_name, realname))
+	{
+	  ap->alias_used = 1;
+	  return 0;
+	}
+    }
+  return 1;
+}
+
+/* Dump any used aliases that have been emitted.  */
+
+int
+mvs_dump_alias(FILE *f)
+{
+  alias_node_t *ap;
+
+#ifdef DEBUG
+  printf("mvs_dump_alias: \n");
+#endif
+
+  for (ap = alias_anchor; ap; ap = ap->alias_next)
+    {
+      if (ap->alias_used && !ap->alias_emitted)
+	{
+	  fprintf (f, "%s\tALIAS\tC'%s'\n",
+	     ap->alias_name,
+	     ap->real_name);
+	}
+    }
+  return 0;
 }
 
 /* Get the alias from the list.
@@ -1116,8 +1184,14 @@ mvs_need_alias (const char *realname)
 int
 mvs_get_alias (const char *realname, char *aliasname)
 {
-#ifdef LONGEXTERNAL
   alias_node_t *ap;
+  char *p;
+
+#ifdef DEBUG
+  printf("mvs_get_alias: realname(%d) = '%s'\n", strlen(realname), realname);
+#endif
+
+#ifdef TARGET_ALIASES
 
   for (ap = alias_anchor; ap; ap = ap->alias_next)
     {
@@ -1166,8 +1240,13 @@ mvs_get_alias (const char *realname, char *aliasname)
 int
 mvs_check_alias (const char *realname, char *aliasname)
 {
-#ifdef LONGEXTERNAL
   alias_node_t *ap;
+
+#ifdef DEBUG
+  printf("mvs_check_alias: realname(%d) = '%s'\n", strlen(realname), realname);
+#endif
+
+#ifdef TARGET_ALIASES
 
   for (ap = alias_anchor; ap; ap = ap->alias_next)
     {
@@ -1341,6 +1420,46 @@ unsigned_jump_follows_p (register rtx insn)
       tmp_insn = XEXP (tmp_insn, 0);
       coda = GET_CODE (tmp_insn);
 
+      /* if we get an equal or not equal, either comparison
+         will work. What we're really interested in what happens
+         after that. So check one more instruction to see if
+         anything comes up. */
+
+      if ((coda == EQ) || (coda == NE))
+        {
+          insn = NEXT_INSN (insn);
+          if (!insn) return (1);
+
+          if (GET_CODE (insn) != JUMP_INSN)
+          {
+              /* skip any labels or notes or non-branching
+                 instructions, looking to see if there's a
+                 branch ahead */
+              while (GET_CODE (insn) != JUMP_INSN)
+              {
+                  if ((GET_CODE (insn) != CODE_LABEL)
+                      && (GET_CODE (insn) != NOTE)
+                      && (GET_CODE (insn) != INSN)
+                      && (GET_CODE (insn) != JUMP_INSN)) return (1);
+                  insn = NEXT_INSN (insn);
+                  if (!insn) return (1);
+              }
+          }
+
+          tmp_insn = PATTERN (insn);
+          if (!tmp_insn) continue;
+          if (GET_CODE (tmp_insn) != SET) return (1);
+
+          if (GET_CODE (XEXP (tmp_insn, 0)) != PC) return (1);
+
+          tmp_insn = XEXP (tmp_insn, 1);
+          if (GET_CODE (tmp_insn) != IF_THEN_ELSE) return (1);
+
+          tmp_insn = XEXP (tmp_insn, 0);
+          coda = GET_CODE (tmp_insn);
+        }
+
+      /* if we got to here, this instruction is a jump.  Is it signed? */
       return coda != GE && coda != GT && coda != LE && coda != LT;
     }
 }
@@ -1354,37 +1473,78 @@ static bool
 i370_hlasm_assemble_integer (rtx x, unsigned int size, int aligned_p)
 {
   const char *int_format = NULL;
+  int intmask;
 
   if (aligned_p)
     switch (size)
-      {
+    {
       case 1:
-	int_format = "\tDC\tX'%02X'\n";
-	break;
+        int_format = "\tDC\tX'%02X'\n";
+        intmask = 0xFF;
+        break;
 
       case 2:
-	int_format = "\tDC\tX'%04X'\n";
-	break;
+        int_format = "\tDC\tX'%04X'\n";
+        intmask = 0xFFFF;
+        break;
 
       case 4:
-	if (GET_CODE (x) == CONST_INT)
-	  {
-	    fputs ("\tDC\tF'", asm_out_file);
-	    output_addr_const (asm_out_file, x);
-	    fputs ("'\n", asm_out_file);
-	  }
-	else
-	  {
-	    fputs ("\tDC\tA(", asm_out_file);
-	    output_addr_const (asm_out_file, x);
-	    fputs (")\n", asm_out_file);
-	  }
-	return true;
-      }
+        if (GET_CODE (x) == CONST_INT)
+        {
+          fputs ("\tDC\tF'", asm_out_file);
+          output_addr_const (asm_out_file, x);
+          fputs ("'\n", asm_out_file);
+        }
+        else
+        {
+          if (GET_CODE (x) == CONST
+            && GET_CODE (XEXP (XEXP (x, 0), 0)) == SYMBOL_REF
+            && SYMBOL_REF_FLAG (XEXP (XEXP (x, 0), 0)))
+              {
+                const char *fname;
+                typedef struct _entnod {
+                    char *data;
+                    struct _entnod *next;
+                    } entnod;
+                static entnod *enstart = NULL;
+                entnod **en;
+
+                fname = XSTR((XEXP (XEXP (x, 0), 0)), 0);
+                en = &enstart;
+                while (*en != NULL)
+                {
+                    if (strcmp((*en)->data, fname) == 0) break;
+                    en = &((*en)->next);
+                }
+                if (*en == NULL)
+                {
+                    *en = xmalloc(sizeof(entnod));
+                    (*en)->data = xmalloc(strlen(fname) + 1);
+                    strcpy((*en)->data, fname);
+                    (*en)->next = NULL;
+                    fputs ("\tEXTRN\t", asm_out_file);
+                    assemble_name(asm_out_file,
+                                  XSTR((XEXP (XEXP (x, 0), 0)), 0));
+                    fputs ("\n", asm_out_file);
+                }
+              }
+          if (SYMBOL_REF_FLAG(x))
+              {
+                fputs ("\tDC\tV(", asm_out_file);
+              }
+          else
+              {
+                fputs ("\tDC\tA(", asm_out_file);
+              }
+          output_addr_const (asm_out_file, x);
+          fputs (")\n", asm_out_file);
+        }
+        return true;
+    }
 
   if (int_format && GET_CODE (x) == CONST_INT)
     {
-      fprintf (asm_out_file, int_format, INTVAL (x));
+      fprintf (asm_out_file, int_format, INTVAL (x) & intmask);
       return true;
     }
   return default_assemble_integer (x, size, aligned_p);
@@ -1402,17 +1562,84 @@ i370_hlasm_assemble_integer (rtx x, unsigned int size, int aligned_p)
 static void
 i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
 {
-#if MACROPROLOGUE == 1
-  fprintf (f, "* Function %s prologue\n", mvs_function_name);
+  size_t nlen;
+  char *p;
+
+  nlen = strlen(mvs_function_name);
+  p = strchr(mvs_function_name, MVS_NAMESEP);
+  if (p != NULL)
+  {
+      nlen = p - mvs_function_name;
+  }
+  /* Don't print stack and args in PDPMAC as it makes the
+     comment too long */
+#ifdef TARGET_PDPMAC
+  fprintf (f, "* %s %*s prologue\n",
+           mvs_need_entry ? "X-func" : "Function",
+           nlen, mvs_function_name);
+#else
+  fprintf (f, "* Function %.*s prologue: stack = %ld, args = %d\n",
+           nlen, mvs_function_name,
+	   l,
+	   current_function_outgoing_args_size);
+#endif
+
+  if (mvs_first_entry)
+    {
+#ifdef TARGET_ALIASES
+      fprintf (f, "@CODE\tALIAS\tC'@%s'\n", mvs_module);
+      fputs ("@CODE\tAMODE\tANY\n", f);
+      fputs ("@CODE\tRMODE\tANY\n", f);
+      fputs ("@CODE\tCSECT\n", f);
+#elif !defined(TARGET_PDPMAC)
+      fprintf (f, "@%s\tCSECT\n", mvs_module);
+#endif
+      mvs_first_entry = 0;
+    }
+#ifdef TARGET_MACROS
+
+#if defined(TARGET_DIGNUS) || defined(TARGET_PDPMAC)
+  assemble_name (f, mvs_function_name);
+#ifdef TARGET_DIGNUS
+  fprintf (f, "\tDCCPRLG CINDEX=%d,FRAME=%d,BASER=%d,ENTRY=%s\n",
+#endif
+#ifdef TARGET_PDPMAC
+  fprintf (f, "\tPDPPRLG CINDEX=%d,FRAME=%d,BASER=%d,ENTRY=%s\n",
+#endif
+	   mvs_page_num,
+	   STACK_FRAME_BASE + l + current_function_outgoing_args_size,
+	   BASE_REGISTER,
+	   mvs_need_entry ? "YES" : "NO");
+  fprintf (f, "\tB\tFEN%d\n", mvs_page_num);
+#ifdef TARGET_DIGNUS
+  fprintf (f, "@FRAMESIZE_%d DC F'%d'\n",
+	   mvs_page_num,
+	   STACK_FRAME_BASE + l + current_function_outgoing_args_size);
+#endif
+#ifdef TARGET_PDPMAC
+  fprintf (f, "\tLTORG\n");
+#endif
+  fprintf (f, "FEN%d\tEQU\t*\n", mvs_page_num);
+  fprintf (f, "\tDROP\t%d\n", BASE_REGISTER);
+  fprintf (f, "\tBALR\t%d,0\n", BASE_REGISTER);
+  fprintf (f, "\tUSING\t*,%d\n", BASE_REGISTER);
+#endif
+
+#ifdef TARGET_LE
+  assemble_name (f, mvs_function_name);
   fprintf (f, "\tEDCPRLG USRDSAL=%d,BASEREG=%d\n",
-	   STACK_POINTER_OFFSET + l - 120 +
-	   current_function_outgoing_args_size, BASE_REGISTER);
-#else /* MACROPROLOGUE != 1 */
+	   STACK_FRAME_BASE + l + current_function_outgoing_args_size,
+	   BASE_REGISTER);
+#endif
+
+#else /* TARGET_MACROS != 1 */
+
+#if defined(TARGET_LE)
+{
   static int function_label_index = 1;
   static int function_first = 0;
   static int function_year, function_month, function_day;
   static int function_hour, function_minute, function_second;
-#if defined(LE370)
   if (!function_first)
     {
       struct tm *function_time;
@@ -1439,9 +1666,13 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   fprintf (f, "FDSL%03d\tEQU\t*-FDSE%03d-8\n", function_label_index,
 	   function_label_index);
   fprintf (f, "\tDS\t0H\n");
-  assemble_name (f, mvs_function_name);
-  fprintf (f, "\tCSECT\n");
+#ifdef TARGET_ALIASES
+  fprintf (f, "@CODE\tCSECT\n");
+#else
+  fprintf (f, "@%s\tCSECT\n", mvs_module);
+#endif
   fprintf (f, "\tUSING\t*,15\n");
+  assemble_name (f, mvs_function_name);
   fprintf (f, "\tB\tFENT%03d\n", function_label_index);
   fprintf (f, "\tDC\tAL1(FNAM%03d+4-*)\n", function_label_index);
   fprintf (f, "\tDC\tX'CE',X'A0',AL1(16)\n");
@@ -1481,7 +1712,10 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   fprintf (f, "\tUSING\t*,%d\n", BASE_REGISTER);
   function_first = 1;
   function_label_index ++;
-#else /* !LE370 */
+}
+#else /* TARGET_LE */
+
+#ifdef XXX_WHAT
   if (!function_first)
     {
       struct tm *function_time;
@@ -1500,21 +1734,21 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
       fprintf (f, "\tDC\tA(CEETIMES)\n");
       fprintf (f, "CEETIMES\tDS\t0F\n");
       fprintf (f, "\tDC\tCL4'%d',CL4'%02d%02d',CL6'%02d%02d00'\n",
-    		 function_year, function_month, function_day,
-    		 function_hour, function_minute, function_second);
+                function_year, function_month, function_day,
+                function_hour, function_minute, function_second);
       fprintf (f, "\tDC\tCL2'01',CL4'0100'\n");
     }
   fprintf (f, "* Function %s prologue\n", mvs_function_name);
   fprintf (f, "FDSD%03d\tDSECT\n", function_label_index);
   fprintf (f, "\tDS\tD\n");
   fprintf (f, "\tDS\tCL(%d)\n", STACK_POINTER_OFFSET + l
-			+ current_function_outgoing_args_size);
+                       + current_function_outgoing_args_size);
   fprintf (f, "\tORG\tFDSD%03d\n", function_label_index);
   fprintf (f, "\tDS\tCL(120+8)\n");
   fprintf (f, "\tORG\n");
   fprintf (f, "\tDS\t0D\n");
   fprintf (f, "FDSL%03d\tEQU\t*-FDSD%03d-8\n", function_label_index,
-	   function_label_index);
+          function_label_index);
   fprintf (f, "\tDS\t0H\n");
   assemble_name (f, mvs_function_name);
   fprintf (f, "\tCSECT\n");
@@ -1527,7 +1761,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   fprintf (f, "\tDC\tAL4(FDSL%03d)\n", function_label_index);
   fprintf (f, "FPL%03d\tEQU\t*\n", function_label_index + 1);
   fprintf (f, "\tDC\tAL2(%d),C'%s'\n", strlen (mvs_function_name),
-	mvs_function_name);
+       mvs_function_name);
   fprintf (f, "FPL%03d\tDS\t0H\n", function_label_index);
   fprintf (f, "\tSTM\t14,12,12(13)\n");
   fprintf (f, "\tL\t2,76(,13)\n");
@@ -1548,12 +1782,15 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   fprintf (f, "\tUSING\t*,%d\n", BASE_REGISTER);
   function_first = 1;
   function_label_index += 2;
-#endif /* !LE370 */
-#endif /* MACROPROLOGUE */
+#endif /* XXX_WHAT */
+#endif /* TARGET_LE */
+
+#endif /* TARGET_MACROS */
+
   fprintf (f, "PG%d\tEQU\t*\n", mvs_page_num );
   fprintf (f, "\tLR\t11,1\n");
   fprintf (f, "\tL\t%d,=A(PGT%d)\n", PAGE_REGISTER, mvs_page_num);
-  fprintf (f, "* Function %s code\n", mvs_function_name);
+  fprintf (f, "* Function %.*s code\n", nlen, mvs_function_name);
 
   mvs_free_label_list ();
   mvs_page_code = 6;
@@ -1567,14 +1804,122 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
 
 static void
 i370_globalize_label (FILE *stream, const char *name)
+#ifdef TARGET_ALIASES
+#ifdef TARGET_DIGNUS
+{
+  char temp[MAX_MVS_LABEL_SIZE + 1];
+  if (!strcmp (name, "main"))
+    {
+      fputs ("@CRT0\tALIAS\tC'@crt0'\n", stream);
+      fputs ("\tEXTRN\t@CRT0\n", stream);
+    }
+  if (mvs_check_alias (name, temp) == 2)
+    {
+      fprintf (stream, "%s\tALIAS\tC'%s'\n", temp, name);
+    }
+  if (mvs_need_to_globalize)
+    {
+      fputs ("\tENTRY\t", stream);
+      assemble_name (stream, name);
+      fputs ("\n", stream);
+    }
+  mvs_need_entry = 1;
+}
+#endif
+#ifdef TARGET_PDPMAC
+{
+  char temp[MAX_MVS_LABEL_SIZE + 1];
+  if (!strcmp (name, "main"))
+    {
+      fputs ("@@CRT0\tALIAS\tC'@@crt0'\n", stream);
+      fputs ("\tEXTRN\t@@CRT0\n", stream);
+    }
+  if (mvs_check_alias (name, temp) == 2)
+    {
+      fprintf (stream, "%s\tALIAS\tC'%s'\n", temp, name);
+    }
+  if (mvs_need_to_globalize)
+    {
+      fprintf(stream, "* X-var %s\n", name);
+      fputs ("\tENTRY\t", stream);
+      assemble_name (stream, name);
+      fputs ("\n", stream);
+    }
+  mvs_need_entry = 1;
+}
+#endif
+#ifdef TARGET_LE
 {
   char temp[MAX_MVS_LABEL_SIZE + 1];
   if (mvs_check_alias (name, temp) == 2)
-    fprintf (stream, "%s\tALIAS\tC'%s'\n", temp, name);
+    {
+      fprintf (stream, "%s\tALIAS\tC'%s'\n", temp, name);
+    }
   fputs ("\tENTRY\t", stream);
   assemble_name (stream, name);
-  putc ('\n', stream);
+  fputs ("\n", stream);
 }
+#endif
+#else /* !TARGET_ALIASES */
+#ifdef TARGET_DIGNUS
+{
+  char temp[MAX_MVS_LABEL_SIZE + 1];
+  if (!strcmp (name, "main"))
+    {
+      fputs ("\tEXTRN\t@CRT0\n", stream);
+    }
+  if (mvs_check_alias (name, temp) == 2)
+    {
+      fprintf (stream, "%s\tALIAS\tC'%s'\n", temp, name);
+    }
+  if (mvs_need_to_globalize)
+    {
+      fputs ("\tENTRY\t", stream);
+      assemble_name (stream, name);
+      fputs ("\n", stream);
+    }
+  mvs_need_entry = 1;
+}
+#else /* probably PDPMAC */
+{
+  char temp[MAX_MVS_LABEL_SIZE + 1];
+  if (!strcmp (name, "main"))
+    {
+      fputs ("\tDC\tC'GCCMVS!!'\n", stream);
+      fputs ("\tEXTRN\t@@CRT0\n", stream);
+      fputs ("\tENTRY\t@@MAIN\n", stream);
+      fputs ("@@MAIN\tDS\t0H\n", stream);
+#ifdef TARGET_VSE
+      fputs ("\tBALR\t10,0\n", stream);
+      fputs ("\tUSING\t*,10\n", stream);
+      fputs ("\tL\t10,=V(@@CRT0)\n", stream);
+      fputs ("\tBR\t10\n", stream);
+      fputs ("\tDROP\t10\n", stream);
+#else
+      fputs ("\tBALR\t15,0\n", stream);
+      fputs ("\tUSING\t*,15\n", stream);
+      fputs ("\tL\t15,=V(@@CRT0)\n", stream);
+      fputs ("\tBR\t15\n", stream);
+      fputs ("\tDROP\t15\n", stream);
+#endif
+      fputs ("\tLTORG\n", stream);
+      mvs_gotmain = 1; /* was 1 */
+    }
+  if (mvs_check_alias (name, temp) == 2)
+    {
+      fprintf (stream, "%s\tALIAS\tC'%s'\n", temp, name);
+    }
+  if (mvs_need_to_globalize)
+    {
+      fprintf(stream, "* X-var %s\n", name);
+      fputs ("\tENTRY\t", stream);
+      assemble_name (stream, name);
+      fputs ("\n", stream);
+    }
+  mvs_need_entry = 1;
+}
+#endif
+#endif /* TARGET_ALIASES */
 
 /* This function generates the assembly code for function exit.
    Args are as for output_function_prologue ().
@@ -1588,46 +1933,172 @@ static void
 i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
 {
   int i;
+  size_t nlen;
+  char *p;
+
+  nlen = strlen(mvs_function_name);
+  p = strchr(mvs_function_name, MVS_NAMESEP);
+  if (p != NULL)
+  {
+      nlen = p - mvs_function_name;
+  }
 
   check_label_emit ();
   mvs_check_page (file, 14, 0);
-  fprintf (file, "* Function %s epilogue\n", mvs_function_name);
+  fprintf (file, "* Function %.*s epilogue\n", nlen, mvs_function_name);
   mvs_page_num++;
 
-#if MACROEPILOGUE == 1
+#ifdef TARGET_MACROS
+
+#ifdef TARGET_DIGNUS
+  fprintf (file, "\tDCCEPIL\n");
+#endif
+#ifdef TARGET_PDPMAC
+  fprintf (file, "\tPDPEPIL\n");
+#endif
+#ifdef TARGET_LE
   fprintf (file, "\tEDCEPIL\n");
-#else /* MACROEPILOGUE != 1 */
+  fprintf (file, "\tDROP\t%d\n", BASE_REGISTER);
+#endif
+
+#else /* !TARGET_MACROS */
+
+#ifdef TARGET_LE
   fprintf (file, "\tL\t13,4(,13)\n");
   fprintf (file, "\tL\t14,12(,13)\n");
   fprintf (file, "\tLM\t2,12,28(13)\n");
   fprintf (file, "\tBALR\t1,14\n");
+  fprintf (file, "\tDROP\t%d\n", BASE_REGISTER);
   fprintf (file, "\tDC\tA(");
   assemble_name (file, mvs_function_name);
   fprintf (file, ")\n" );
-#endif /* MACROEPILOGUE */
+#endif
 
-  fprintf (file, "* Function %s literal pool\n", mvs_function_name);
+#endif /* TARGET_MACROS */
+
+  fprintf (file, "* Function %.*s literal pool\n", nlen, mvs_function_name);
   fprintf (file, "\tDS\t0F\n" );
   fprintf (file, "\tLTORG\n");
-  fprintf (file, "* Function %s page table\n", mvs_function_name);
+  fprintf (file, "* Function %.*s page table\n", nlen, mvs_function_name);
   fprintf (file, "\tDS\t0F\n");
   fprintf (file, "PGT%d\tEQU\t*\n", function_base_page);
 
   mvs_free_label_list();
   for (i = function_base_page; i < mvs_page_num; i++)
     fprintf (file, "\tDC\tA(PG%d)\n", i);
+  mvs_need_entry = 0;
 }
 
+
 static void
-i370_file_start ()
-{
-  fputs ("\tRMODE\tANY\n\tCSECT\n", asm_out_file);
+i370_file_start (void)
+
+#ifdef TARGET_ALIASES
+
+{ extern const char *main_input_filename;
+  char temp[256];
+  const char *cbp, *cfp;
+  char *bp;
+  if (asm_file_name)
+    {
+      if (strncmp (asm_file_name, "/tmp", 4) == 0)
+        cfp = main_input_filename;
+      else
+        cfp = asm_file_name;
+    }
+  else cfp = main_input_filename;
+  if ((cbp = strrchr (cfp, '/')) == NULL)
+    cbp = cfp;
+  else cbp++;
+  while (*cbp == '_') cbp++;
+  strcpy (temp, cbp);
+  if ((bp = strchr (temp, '.')) != NULL) *bp = '\0';
+  for (bp = temp; *bp; bp++)
+    *bp = ISLOWER(*bp) ? TOUPPER(*bp) : *bp;
+  mvs_module = (char *) xmalloc (strlen(temp)+2);
+  strcpy (mvs_module, temp);
+  for (bp = temp; *bp; bp++)
+    *bp = ISUPPER(*bp) ? TOLOWER(*bp) : *bp;
+  fprintf (asm_out_file, "@DATA\tALIAS\tC'@%s'\n", temp);
+  fputs ("@DATA\tAMODE\tANY\n", asm_out_file);
+  fputs ("@DATA\tRMODE\tANY\n", asm_out_file);
+  fputs ("@DATA\tCSECT\n", asm_out_file);
 }
+
+#else /* ! ALIASES */
+
+#ifdef TARGET_PDPMAC
+
+{ extern const char *main_input_filename;
+  char temp[256];
+  const char *cbp, *cfp;
+  char *bp;
+  if (asm_file_name)
+    {
+      if (strncmp (asm_file_name, "/tmp", 4) == 0)
+        cfp = main_input_filename;
+      else
+        cfp = asm_file_name;
+    }
+  else cfp = main_input_filename;
+  if ((cbp = strrchr (cfp, '/')) == NULL)
+    cbp = cfp;
+  else cbp++;
+  while (*cbp == '_') cbp++;
+  strcpy (temp, cbp);
+  if ((bp = strchr (temp, '.')) != NULL) *bp = '\0';
+  if (strlen (temp) > MAX_MVS_LABEL_SIZE - 1)
+    temp[MAX_MVS_LABEL_SIZE-1] = '\0';
+  for (bp = temp; *bp; bp++)
+    *bp = ISLOWER(*bp) ? TOUPPER(*bp) : *bp;
+  mvs_module = (char *) xmalloc (strlen(temp)+2);
+  strcpy (mvs_module, temp);
+  fprintf (asm_out_file, "\tCOPY\tPDPTOP\n");
+  fprintf (asm_out_file, "%s\tCSECT\n", mvs_csect_name ? mvs_csect_name : "");
+}
+
+#else /* ! PDPMAC */
+
+{ extern const char *main_input_filename;
+  char temp[256];
+  const char *cbp, *cfp;
+  char *bp;
+  if (asm_file_name)
+    {
+      if (strncmp (asm_file_name, "/tmp", 4) == 0)
+        cfp = main_input_filename;
+      else
+        cfp = asm_file_name;
+    }
+  else cfp = main_input_filename;
+  if ((cbp = strrchr (cfp, '/')) == NULL)
+    cbp = cfp;
+  else cbp++;
+  while (*cbp == '_') cbp++;
+  strcpy (temp, cbp);
+  if ((bp = strchr (temp, '.')) != NULL) *bp = '\0';
+  if (strlen (temp) > MAX_MVS_LABEL_SIZE - 1)
+    temp[MAX_MVS_LABEL_SIZE-1] = '\0';
+  for (bp = temp; *bp; bp++)
+    *bp = ISLOWER(*bp) ? TOUPPER(*bp) : *bp;
+  mvs_module = (char *) xmalloc (strlen(temp)+2);
+  strcpy (mvs_module, temp);
+  fprintf (asm_out_file, "$%s\tCSECT\n", mvs_module);
+}
+#endif /* PDPMAC */
+
+#endif /* TARGET_ALIASES */
 
 static void
 i370_file_end (void)
 {
+#ifdef TARGET_ALIASES
+  mvs_dump_alias (asm_out_file);
   fputs ("\tEND\n", asm_out_file);
+#else
+  if (mvs_gotmain) fputs ("\tEND\t@@MAIN\n", asm_out_file);
+  else fputs ("\tEND\n", asm_out_file);
+#endif /* TARGET_ALIASES */
 }
 #endif /* TARGET_HLASM */
 
@@ -1869,10 +2340,10 @@ i370_rtx_costs (rtx x, int code, int outer_code ATTRIBUTE_UNUSED, int *total)
     {
     case CONST_INT:
       if ((unsigned HOST_WIDE_INT) INTVAL (x) < 0xfff)
-	{
-	  *total = 1;
-	  return true;
-	}
+        {
+          *total = 1;
+          return true;
+        }
       /* FALLTHRU */
 
     case CONST:
