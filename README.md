@@ -15,14 +15,28 @@ The original i370 port can be found on
 [Linas' i370 website](https://linas.org/linux/i370/i370.html).
 
 ### HOWTO
-Nothing works yet. Currently attempt to revive the old version 3.4.6
-with is the last version that had i370 in it.
+The last version of gcc with the i370 machine definition in it was
+version 3.4.6. This is tagged in github as `releases/gcc-3.4.6`.
+The i370 code was removed by `releases/gcc-4.0.0`.
+
+The code here starts with gcc release 3.4.6 and applies a large number
+of fixes that (a) were lost during the infighting between egcs and gcc,
+(b) fix bugs that were discovered after gcc-4.0.0 came out, and thus,
+the fixes were never upstreamed.  This includes fixes from Paul Edwards,
+among others.
+
+To get the latest, do this:
 ```
 git checkout i370-gcc-3.4.6
 mkdir build; cd build
-../configure --target=i370-ibm-linux --enable-obsolete --enable-languages="c" --with-newlib
-make
+../configure --target=i370-ibm-linux --enable-languages="c" --disable-threads
+make -j12
+sudo make install
 ```
+
+The `sudo make install` will install `gcc` into
+`/usr/local/i370-ibm-linux/bin` and `libgcc_s.so.1` into
+`/usr/local/i370-ibm-linux/lib`.
 
 Original GNU README
 ===================
