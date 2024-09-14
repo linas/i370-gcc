@@ -82,7 +82,7 @@ extern int i370_enable_pic;
   { "no-pickax", -2, "Disable experimental i370 PIC"}, \
   { "", TARGET_DEFAULT, 0} }
 
-#define OVERRIDE_OPTIONS  override_options ()
+#define OVERRIDE_OPTIONS  i370_override_options ()
 
 /* To use IBM supplied macro function prologue and epilogue, define the
    following to 1.  Should only be needed if IBM changes the definition

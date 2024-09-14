@@ -40,10 +40,16 @@ Boston, MA 02111-1307, USA.  */
 #include "flags.h"
 #include "recog.h"
 #include "toplev.h"
+#include "ggc.h"
 #include "cpplib.h"
 #include "tm_p.h"
 #include "target.h"
 #include "target-def.h"
+
+
+/* maximum length output line */
+/* need to allow for people dumping specs */
+#define MAX_LEN_OUT 2000
 
 extern FILE *asm_out_file;
 
@@ -69,8 +75,20 @@ typedef struct label_node
   }
 label_node_t;
 
+/* if we just inspected a label on another page, we want to
+   record that */
+static int just_referenced_page = -1;
+
 /* Is 1 when a label has been generated and the base register must be reloaded.  */
 int mvs_need_base_reload = 0;
+
+/* Is 1 when an entry point is to be generated.  */
+int mvs_need_entry = 0;
+
+/* Is 1 if we have seen main() */
+int mvs_gotmain = 0;
+
+int mvs_need_to_globalize = 1;
 
 /* Current function starting base page.  */
 int function_base_page;
@@ -81,14 +99,26 @@ int mvs_page_code;
 /* Length of the current page literals.  */
 int mvs_page_lit;
 
+/* Length of case statement entries */
+int mvs_case_code = 0;
+
+/* The desired CSECT name */
+char *mvs_csect_name = 0;
+
 /* Current function name.  */
 char *mvs_function_name = 0;
+
+/* Current source module.  */
+char *mvs_module = 0;
 
 /* Current function name length.  */
 size_t mvs_function_name_length = 0;
 
 /* Page number for multi-page functions.  */
 int mvs_page_num = 0;
+
+/* First entry point.  */
+static int mvs_first_entry = 1;
 
 /* Label node list anchor.  */
 static label_node_t *label_anchor = 0;
@@ -99,26 +129,35 @@ static label_node_t *free_anchor = 0;
 /* Assembler source file descriptor.  */
 static FILE *assembler_source = 0;
 
+/* Flag that enables position independent code */
+int i370_enable_pic = 1;
+
 static label_node_t * mvs_get_label (int);
+static void i370_encode_section_info (tree, rtx, int);
+static const char * i370_strip_name_encoding (const char *s);
 static void i370_label_scan (void);
-#ifdef TARGET_HLASM
-static bool i370_hlasm_assemble_integer (rtx, unsigned int, int);
-static void i370_globalize_label (FILE *, const char *);
-#endif
+
 static void i370_output_function_prologue (FILE *, HOST_WIDE_INT);
 static void i370_output_function_epilogue (FILE *, HOST_WIDE_INT);
 static void i370_file_start (void);
 static void i370_file_end (void);
 
-#ifdef LONGEXTERNAL
+#ifdef TARGET_ALIASES
 static int mvs_hash_alias (const char *);
 #endif
+
 static void i370_internal_label (FILE *, const char *, unsigned long);
 static bool i370_rtx_costs (rtx, int, int, int *);
 
+/* character to use to separate encoding info from function name */
+#define MVS_NAMESEP ','
+
 /* ===================================================== */
-/* defines and functions specific to the HLASM assembler */
+/* Defines and functions specific to the HLASM assembler. */
 #ifdef TARGET_HLASM
+
+static bool i370_hlasm_assemble_integer (rtx, unsigned int, int);
+static void i370_globalize_label (FILE *, const char *);
 
 #define MVS_HASH_PRIME 999983
 #if HOST_CHARSET == HOST_CHARSET_EBCDIC
@@ -141,6 +180,7 @@ typedef struct alias_node
   {
     struct alias_node *alias_next;
     int  alias_emitted;
+    int  alias_used;
     char alias_name [MAX_MVS_LABEL_SIZE + 1];
     char real_name [MAX_LONG_LABEL_SIZE + 1];
   }
@@ -149,6 +189,7 @@ alias_node_t;
 /* Alias node list anchor.  */
 static alias_node_t *alias_anchor = 0;
 
+#ifdef TARGET_LE
 /* Define the length of the internal MVS function table.  */
 #define MVS_FUNCTION_TABLE_LENGTH 32
 
@@ -172,8 +213,10 @@ static const char *const mvs_function_table[MVS_FUNCTION_TABLE_LENGTH] =
    "y1",       "yn"
 #endif
 };
+#endif /* TARGET_LE */
 
 #endif /* TARGET_HLASM */
+
 /* ===================================================== */
 
 
@@ -203,20 +246,37 @@ static const char *const mvs_function_table[MVS_FUNCTION_TABLE_LENGTH] =
 #define  TARGET_ASM_INTERNAL_LABEL i370_internal_label
 #undef TARGET_RTX_COSTS
 #define TARGET_RTX_COSTS i370_rtx_costs
+#undef	TARGET_ENCODE_SECTION_INFO
+#define TARGET_ENCODE_SECTION_INFO i370_encode_section_info
+#undef	TARGET_STRIP_NAME_ENCODING
+#define TARGET_STRIP_NAME_ENCODING i370_strip_name_encoding
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
-/* Flag that enables position independent code */
-int i370_enable_pic = 1;
-
 /* Set global variables as needed for the options enabled.
    This is also our last chance to clean up before starting to compile,
    and so we can fix up some initializations here.
   */
 
 void
-override_options (void)
+i370_override_options (void)
 {
+  i370_enable_pic = flag_pic;
+
+  if (mvs_csect_name)
+  {
+      static char buf[9];
+      char *p;
+
+      strncpy(buf, mvs_csect_name, 8);
+      p = buf;
+      while (*p != '\0')
+      {
+          *p = TOUPPER((unsigned char)*p);
+          p++;
+      }
+      mvs_csect_name = buf;
+  }
 #ifdef TARGET_ELF_ABI
   /* Override CALL_USED_REGISTERS & FIXED_REGISTERS
      PIC requires r12, otherwise its free */
@@ -234,6 +294,72 @@ override_options (void)
   memset (real_format_for_mode, 0, sizeof real_format_for_mode);
   REAL_MODE_FORMAT (SFmode) = &i370_single_format;
   REAL_MODE_FORMAT (DFmode) = &i370_double_format;
+}
+
+static int statfunc = 0;
+static int statvar = 0;
+
+/* Encode symbol attributes (local vs. global, tls model) of a SYMBOL_REF
+   into its SYMBOL_REF_FLAGS.  */
+
+static void
+i370_encode_section_info (tree decl, rtx rtl, int first)
+{
+  default_encode_section_info (decl, rtl, first);
+  if (DECL_EXTERNAL (decl) && TREE_PUBLIC (decl))
+    SYMBOL_REF_FLAG (XEXP (DECL_RTL (decl), 0)) = 1;
+  if (first
+      && !TREE_PUBLIC (decl)
+      && TREE_CODE (decl) == FUNCTION_DECL)
+  {
+    rtx sym_ref = XEXP (rtl, 0);
+    size_t len = strlen (XSTR (sym_ref, 0));
+    char buf[20];
+    char *str = alloca (len + sizeof buf);
+
+    statfunc++;
+    sprintf(buf, "%cF%d", MVS_NAMESEP, statfunc);
+    strcpy(str, XSTR(sym_ref, 0));
+    strcat(str, buf);
+    XSTR (sym_ref, 0) = ggc_alloc_string (str, strlen(str) + 1);
+  }
+  else if (first
+      && TREE_STATIC (decl)
+      && !TREE_PUBLIC (decl)
+      && TREE_CODE (decl) == VAR_DECL)
+  {
+    rtx sym_ref = XEXP (rtl, 0);
+    size_t len = strlen (XSTR (sym_ref, 0));
+    char buf[20];
+    char *str = alloca (len + sizeof buf);
+
+    statvar++;
+    sprintf(buf, "%cV%d", MVS_NAMESEP, statvar);
+    strcpy(str, XSTR(sym_ref, 0));
+    strcat(str, buf);
+    XSTR (sym_ref, 0) = ggc_alloc_string (str, strlen(str) + 1);
+  }
+}
+
+static const char *
+i370_strip_name_encoding (const char *s)
+{
+    const char *p;
+    static char buf[100];
+    size_t len;
+
+    p = strchr(s, MVS_NAMESEP);
+    if (p != NULL)
+    {
+        len = (size_t)(p - s);
+    }
+    if ((p != NULL) && (len < sizeof buf))
+    {
+        memcpy(buf, s, len);
+        buf[len] = '\0';
+        return (buf);
+    }
+    return (default_strip_name_encoding(s));
 }
 
 /* ===================================================== */
@@ -302,6 +428,7 @@ i370_branch_dest (rtx branch)
 
      lp = mvs_get_label (labelno);
      if (-1 == lp -> first_ref_page) lp->first_ref_page = mvs_page_num;
+     just_referenced_page = lp->label_page;
   }
   return dest_addr;
 }
@@ -322,6 +449,17 @@ i370_short_branch (rtx insn)
   int base_offset;
 
   base_offset = i370_branch_length(insn);
+  /* If we just referenced something off-page, then you can
+     forget about doing a short branch to it! So for backward
+     references, we'll have a page number and can see that it is
+     different. For forward references, the page number isn't
+     available yet (ie it's still set to -1), so don't use
+     this logic on them. */
+  if ((just_referenced_page != mvs_page_num)
+      && (just_referenced_page != -1))
+    {
+      return 0;
+    }
   if (0 > base_offset)
     {
       base_offset += mvs_page_code;
@@ -632,6 +770,17 @@ mvs_add_label (int id)
   lp = mvs_get_label (id);
   lp->label_page = mvs_page_num;
 
+/* Note that without this, some case statements are
+     not generating correct code, e.g. case '{' in
+     do_spec_1 in gcc.c */
+#if 1
+  if (mvs_page_num != function_base_page)
+  {
+      mvs_need_base_reload ++;
+      return;
+  }
+#endif
+
   /* OK, we just saw the label.  Determine if this label
    * needs a reload of the base register */
   if ((-1 != lp->first_ref_page) &&
@@ -659,7 +808,8 @@ mvs_add_label (int id)
 
   fwd_distance = lp->label_last_ref - lp->label_addr;
 
-  if (mvs_page_code + 2 * fwd_distance + mvs_page_lit < MAX_MVS_PAGE_LENGTH) return;
+  if (mvs_page_code + 2 * fwd_distance + mvs_page_lit < MAX_MVS_PAGE_LENGTH)
+      return;
 
   mvs_need_base_reload ++;
 }
