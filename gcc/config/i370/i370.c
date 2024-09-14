@@ -117,9 +117,6 @@ size_t mvs_function_name_length = 0;
 /* Page number for multi-page functions.  */
 int mvs_page_num = 0;
 
-/* First entry point.  */
-static int mvs_first_entry = 1;
-
 /* Label node list anchor.  */
 static label_node_t *label_anchor = 0;
 
@@ -133,8 +130,6 @@ static FILE *assembler_source = 0;
 int i370_enable_pic = 1;
 
 static label_node_t * mvs_get_label (int);
-static void i370_encode_section_info (tree, rtx, int);
-static const char * i370_strip_name_encoding (const char *s);
 static void i370_label_scan (void);
 
 static void i370_output_function_prologue (FILE *, HOST_WIDE_INT);
@@ -149,13 +144,18 @@ static int mvs_hash_alias (const char *);
 static void i370_internal_label (FILE *, const char *, unsigned long);
 static bool i370_rtx_costs (rtx, int, int, int *);
 
-/* character to use to separate encoding info from function name */
-#define MVS_NAMESEP ','
-
 /* ===================================================== */
 /* Defines and functions specific to the HLASM assembler. */
 #ifdef TARGET_HLASM
 
+/* First entry point.  */
+static int mvs_first_entry = 1;
+
+/* character to use to separate encoding info from function name */
+#define MVS_NAMESEP ','
+
+static void i370_encode_section_info (tree, rtx, int);
+static const char * i370_strip_name_encoding (const char *s);
 static bool i370_hlasm_assemble_integer (rtx, unsigned int, int);
 static void i370_globalize_label (FILE *, const char *);
 
@@ -246,10 +246,13 @@ static const char *const mvs_function_table[MVS_FUNCTION_TABLE_LENGTH] =
 #define  TARGET_ASM_INTERNAL_LABEL i370_internal_label
 #undef TARGET_RTX_COSTS
 #define TARGET_RTX_COSTS i370_rtx_costs
+
+#ifdef TARGET_HLASM
 #undef	TARGET_ENCODE_SECTION_INFO
 #define TARGET_ENCODE_SECTION_INFO i370_encode_section_info
 #undef	TARGET_STRIP_NAME_ENCODING
 #define TARGET_STRIP_NAME_ENCODING i370_strip_name_encoding
+#endif /* TARGET_HLASM */
 
 struct gcc_target targetm = TARGET_INITIALIZER;
 
@@ -261,8 +264,7 @@ struct gcc_target targetm = TARGET_INITIALIZER;
 void
 i370_override_options (void)
 {
-  i370_enable_pic = flag_pic;
-
+#ifdef TARGET_HLASM
   if (mvs_csect_name)
   {
       static char buf[9];
@@ -277,7 +279,11 @@ i370_override_options (void)
       }
       mvs_csect_name = buf;
   }
+#endif /* TARGET_HLASM */
+
 #ifdef TARGET_ELF_ABI
+  i370_enable_pic = flag_pic;
+
   /* Override CALL_USED_REGISTERS & FIXED_REGISTERS
      PIC requires r12, otherwise its free */
   if (i370_enable_pic)
@@ -296,6 +302,7 @@ i370_override_options (void)
   REAL_MODE_FORMAT (DFmode) = &i370_double_format;
 }
 
+#ifdef TARGET_HLASM
 static int statfunc = 0;
 static int statvar = 0;
 
@@ -361,6 +368,7 @@ i370_strip_name_encoding (const char *s)
     }
     return (default_strip_name_encoding(s));
 }
+#endif /* TARGET_HLASM */
 
 /* ===================================================== */
 /* The following three routines are used to determine whether
@@ -2135,7 +2143,6 @@ static void
 i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
 {
   static int function_label_index = 1;
-  static int function_first = 0;
   int stackframe_size, aligned_size;
 
   /* store stack size where we can get to it */
@@ -2241,7 +2248,6 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   fprintf (f, "\tBASR\tr3,0\n");
   fprintf (f, "\t.using\t.,r3\n");
   fprintf (f, ".LPG%d:\n", mvs_page_num  );
-  function_first = 1;
   function_label_index ++;
 
   /* Store the code page pool off of the frame pointer for easy access. */
