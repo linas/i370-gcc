@@ -359,7 +359,7 @@ i370_short_branch (rtx insn)
 }
 
 static void
-i370_label_scan ()
+i370_label_scan (void)
 {
    rtx insn;
    label_node_t *lp;
@@ -526,8 +526,8 @@ i370_label_scan ()
      .long .LPG1      // DC A(PG1)
      .long .LPOOL1
 
-  Note that the function prologue loads the page addressing register:
-      L       r4,=A(.LPGT0)
+  Note that the function prologue loads the page addressing register r4:
+      L       PAGE_REGISTER,=A(.LPGT0)
 
   The ELF version then stores this value at 0(r13), so that its always
   accessible. This frees up r4 for general register allocation; whereas
@@ -541,19 +541,18 @@ i370_label_scan ()
 
 #ifdef TARGET_HLASM
 void
-check_label_emit ()
+check_label_emit (void)
 {
   if (mvs_need_base_reload)
     {
       mvs_need_base_reload = 0;
-
       mvs_page_code += 4;
       fprintf (assembler_source, "\tL\t%d,%d(,%d)\n",
-	  BASE_REGISTER, (mvs_page_num - function_base_page) * 4,
-	  PAGE_REGISTER);
+          BASE_REGISTER, (mvs_page_num - function_base_page) * 4,
+          PAGE_REGISTER);
     }
 }
-#endif
+#endif /* TARGET_HLASM */
 
 #ifdef TARGET_ELF_ABI
 void
@@ -590,8 +589,7 @@ check_label_emit (void)
    ID is the label number of the label being added to the list.  */
 
 static label_node_t *
-mvs_get_label (id)
-     int id;
+mvs_get_label (int id)
 {
   label_node_t *lp;
 
@@ -626,8 +624,7 @@ mvs_get_label (id)
 }
 
 void
-mvs_add_label (id)
-     int id;
+mvs_add_label (int id)
 {
   label_node_t *lp;
   int fwd_distance;
@@ -676,8 +673,7 @@ mvs_add_label (id)
    ID is the label number of the label being checked.  */
 
 int
-mvs_check_label (id)
-     int id;
+mvs_check_label (int id)
 {
   label_node_t *lp;
 
@@ -1060,11 +1056,11 @@ mvs_check_alias (const char *realname, char *aliasname)
   return 0;
 }
 
-/* defines and functions specific to the HLASM assembler */
 #endif /* TARGET_HLASM */
+
 /* ===================================================== */
 /* ===================================================== */
-/* defines and functions specific to the gas assembler */
+/* Defines and functions specific to the gas assembler. */
 #ifdef TARGET_ELF_ABI
 
 /* Check for non-standard calling conventions.
@@ -1650,9 +1646,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
    adjustments before returning.  */
 
 static void
-i370_output_function_epilogue (file, l)
-     FILE *file;
-     HOST_WIDE_INT l ATTRIBUTE_UNUSED;
+i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
 {
   int i;
   check_label_emit();
