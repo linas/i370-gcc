@@ -1934,7 +1934,8 @@ abort(); \
       if (!flag_inhibit_size_directive)					\
         {								\
           ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
-          fprintf(FILE, ".previous\n");					\
+	  if (i370_enable_pic)						\
+	    fprintf(FILE, ".previous\n");				\
         }								\
     }									\
   while (0)

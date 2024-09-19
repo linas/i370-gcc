@@ -2299,7 +2299,7 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
           fprintf (file, "\t.long\t.LPG%d\n", i);
           fprintf (file, "\t.long\t.LPOOL%d\n", i);
         }
-      /* fprintf (file, ".previous\n");   */
+      /* fprintf (file, ".previous\n"); Now done in ASM_DECLARE_FUNCTION_SIZE */
     }
   else
     {
