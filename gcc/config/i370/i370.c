@@ -315,6 +315,7 @@ i370_encode_section_info (tree decl, rtx rtl, int first)
   default_encode_section_info (decl, rtl, first);
   if (DECL_EXTERNAL (decl) && TREE_PUBLIC (decl))
     SYMBOL_REF_FLAG (XEXP (DECL_RTL (decl), 0)) = 1;
+
   if (first
       && !TREE_PUBLIC (decl)
       && TREE_CODE (decl) == FUNCTION_DECL)

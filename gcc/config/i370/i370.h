@@ -926,7 +926,7 @@ enum reg_class
 	  && GET_CODE (XEXP (XEXP (X, 0), 0)) == LABEL_REF)		\
   || (GET_CODE (X) == CONST						\
 	  && GET_CODE (XEXP (XEXP (X, 0), 0)) == SYMBOL_REF		\
-	  && !SYMBOL_REF_EXTERNAL_P (XEXP (XEXP (X, 0), 0))))
+	  && !SYMBOL_REF_FLAG (XEXP (XEXP (X, 0), 0))))
 
 /* Nonzero if the constant value X is a legitimate general operand.
    It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
