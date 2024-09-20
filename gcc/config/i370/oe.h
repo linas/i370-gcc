@@ -29,6 +29,11 @@ Boston, MA 02111-1307, USA.  */
 #define LONGEXTERNAL 1
 #define TARGET_EBCDIC 1
 #define TARGET_HLASM 1
+#define TARGET_ALIASES 1
+
+/* Specify that we're using macro prolog/epilog.  */
+
+/*#define TARGET_MACROS 1*/
 
 /* Options for the preprocessor for this target machine.  */
 
