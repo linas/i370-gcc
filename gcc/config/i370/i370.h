@@ -70,6 +70,8 @@ extern size_t mvs_function_name_length;
 extern int i370_enable_pic;
 
 /* Default target switches */
+/* This appears to be what switches
+   target char instructions on by default */
 
 #define TARGET_DEFAULT 1
 
@@ -85,7 +87,19 @@ extern int i370_enable_pic;
   { "no-pickax", -2, "Disable experimental i370 PIC"}, \
   { "", TARGET_DEFAULT, 0} }
 
-#define OVERRIDE_OPTIONS  i370_override_options ()
+#define TARGET_OPTIONS \
+{ { "csect=", (const char **)&mvs_csect_name, \
+    N_("Set CSECT name")},     \
+  SUBTARGET_OPTIONS    \
+}
+
+#define SUBTARGET_OPTIONS
+
+
+#define REAL_ARITHMETIC
+
+extern void i370_override_options (void);
+#define OVERRIDE_OPTIONS i370_override_options()
 
 /* To use IBM supplied macro function prologue and epilogue, define the
    following to 1.  Should only be needed if IBM changes the definition
@@ -195,7 +209,7 @@ extern int i370_enable_pic;
 #define PAGE_REGISTER 4
 #define PIC_BASE_REGISTER 12
 
-#ifdef TARGET_HLASM
+#if defined(TARGET_HLASM) || defined(TARGET_PDOSGB)
 /* 1 for registers that have pervasive standard uses and are not available
    for the register allocator.  These are registers that must have fixed,
    valid values stored in them for the entire length of the subroutine call,
@@ -203,12 +217,18 @@ extern int i370_enable_pic;
    they must never be clobbered, and, if clobbered, the register allocator
    will never restore them back.
 
-   We use five registers in this special way:
+   For the LE/370 mode, we use five registers in this special way:
    -- R3 which is used as the base register
    -- R4 the page origin table pointer used to load R3,
    -- R11 the arg pointer.
    -- R12 the TCA pointer
    -- R13 the stack (DSA) pointer
+
+   For TARGET_DIGNUS or TARGET_PDPMAC mode:
+   -- R10 the page origin table pointer used to load R3,
+   -- R11 the arg pointer.
+   -- R12 the base register.
+   -- R13 the stack pointer
 
    A fifth register is also exceptional: R14 is used in many branch
    instructions to hold the target of the branch.  Technically, this
@@ -236,6 +256,46 @@ extern int i370_enable_pic;
    I think this is a bug, but I can't track it down...
  */
 
+#if defined(TARGET_DIGNUS) || defined(TARGET_PDPMAC) \
+    || defined(TARGET_PDOSGB)
+#undef PAGE_REGISTER
+#undef BASE_REGISTER
+#define PAGE_REGISTER 10
+#define BASE_REGISTER 12
+
+#ifdef TARGET_DIGNUS
+#define FIXED_REGISTERS 						\
+{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 }
+/*0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19*/
+#endif
+
+#if defined(TARGET_PDPMAC) || defined(TARGET_PDOSGB)
+/* made register 1 fixed because it is used
+   for parameter passing, otherwise we DO
+   have a problem! */
+/* also made register 0 fixed, because I am using that
+   for the struct, instead of 1.  Why would anyone
+   choose 1 for the struct when it is being used
+   already for the parameters? */
+#define FIXED_REGISTERS 						\
+{ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0 }
+/*0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19*/
+#endif
+
+/* 1 for registers not available across function calls.  These must include
+   the FIXED_REGISTERS and also any registers that can be used without being
+   saved.
+   The latter must include the registers where values are returned
+   and the register where structure-value addresses are passed.
+   NOTE: all floating registers are undefined across calls.
+*/
+
+#define CALL_USED_REGISTERS 						\
+{ 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1 }
+/*0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19*/
+#endif
+
+#ifdef TARGET_LE
 #define FIXED_REGISTERS 						\
 { 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0 }
 /*0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19*/
@@ -251,13 +311,8 @@ extern int i370_enable_pic;
 #define CALL_USED_REGISTERS 						\
 { 1, 1, 0, 1, 1, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1 }
 /*0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19*/
+#endif /* TARGET_LE */
 
-/* Return number of consecutive hard regs needed starting at reg REGNO
-   to hold something of mode MODE.
-   This is ordinarily the length in words of a value of mode MODE
-   but can be less for certain modes in special long registers.
-   Note that DCmode (complex double) needs two regs.
-*/
 #endif /* TARGET_HLASM */
 
 /* ================= */
@@ -293,6 +348,12 @@ extern int i370_enable_pic;
 #endif /* TARGET_ELF_ABI */
 /* ================= */
 
+
+/* Return number of consecutive hard regs needed starting at reg REGNO
+   to hold something of mode MODE.
+   This is ordinarily the length in words of a value of mode MODE
+   but can be less for certain modes in special long registers.
+   Note that DCmode (complex double) needs two regs.  */
 
 #define HARD_REGNO_NREGS(REGNO, MODE) 					\
   ((REGNO) > 15 ? 							\
