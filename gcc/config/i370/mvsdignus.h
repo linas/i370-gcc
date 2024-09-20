@@ -42,8 +42,11 @@ Boston, MA 02111-1307, USA.  */
 #define CPP_SPEC "-trigraphs"
 #define STARTFILE_SPEC ""
 
-/* Names to predefine in the preprocessor for this target machine.  */
-
-#define CPP_PREDEFINES "-DGCC -Dgcc -DMVS -Dmvs -DDIGNUS -Asystem=mvs -Acpu=i370 -Amachine=i370"
-
-
+/* Target OS preprocessor built-ins.  */
+#define TARGET_OS_CPP_BUILTINS()               \
+    do {                                       \
+       builtin_define ("MVS");                 \
+       builtin_define ("mvs");                 \
+       builtin_define ("DIGNUS");              \
+       builtin_assert ("system=mvs");          \
+    } while (0)

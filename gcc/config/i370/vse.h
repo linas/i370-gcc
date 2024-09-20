@@ -41,9 +41,12 @@ Boston, MA 02111-1307, USA.  */
 
 #define CPP_SPEC "-trigraphs"
 
-/* Names to predefine in the preprocessor for this target machine.  */
-
-#define CPP_PREDEFINES "-D__GCC__ -D__VSE__ -Asystem=mvs -Acpu=i370 -Amachine=i370"
+/* Target OS preprocessor built-ins.  */
+#define TARGET_OS_CPP_BUILTINS()               \
+    do {                                       \
+       builtin_define ("__VSE__");             \
+       builtin_assert ("system=mvs");          \
+    } while (0)
 
 /* PDPCLIB uses "char" for "wchar_t" */
 #undef WCHAR_TYPE
