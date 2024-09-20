@@ -637,7 +637,9 @@ i370_label_scan (void)
                         rtx label = XEXP (note,0);
                         if (!label || CODE_LABEL != GET_CODE (label)) abort ();
 
-                        I370_RECORD_LABEL_REF(label,here);
+                        /* Record, only if the label is not deleted */
+                        if (NOTE_LINE_NUMBER (label) != NOTE_INSN_DELETED_LABEL)
+                          I370_RECORD_LABEL_REF(label,here);
                      }
                 }
            }
