@@ -58,7 +58,10 @@ extern size_t mvs_function_name_length;
 
 /* Compile using char instructions (mvc, nc, oc, xc).  On 4341 use this since
    these are more than twice as fast as load-op-store.
-   On 3090 don't use this since load-op-store is much faster.  */
+   On 3090 don't use this since load-op-store is much faster.
+   On Hercules it seems that the char instructions make a
+   module slightly faster.  */
+
 
 #define TARGET_CHAR_INSTRUCTIONS (target_flags & 1)
 
@@ -163,8 +166,8 @@ extern int i370_enable_pic;
 
 #define MAX_MVS_PAGE_LENGTH 4060
 
-/* Define special register allocation order desired.  
-   Don't fiddle with this.  I did, and I got all sorts of register 
+/* Define special register allocation order desired.
+   Don't fiddle with this.  I did, and I got all sorts of register
    spill errors when compiling even relatively simple programs...
    I have no clue why ...
    E.g. this one is bad:
@@ -197,13 +200,13 @@ extern int i370_enable_pic;
    for the register allocator.  These are registers that must have fixed,
    valid values stored in them for the entire length of the subroutine call,
    and must not in any way be moved around, jiggered with, etc. That is,
-   they must never be clobbered, and, if clobbered, the register allocator 
+   they must never be clobbered, and, if clobbered, the register allocator
    will never restore them back.
-   
+
    We use five registers in this special way:
    -- R3 which is used as the base register
    -- R4 the page origin table pointer used to load R3,
-   -- R11 the arg pointer.  
+   -- R11 the arg pointer.
    -- R12 the TCA pointer
    -- R13 the stack (DSA) pointer
 
@@ -219,7 +222,7 @@ extern int i370_enable_pic;
 
    There are other registers which have special meanings, but its OK
    for them to get clobbered, since other allocator config below will
-   make sure that they always have the right value.  These are for 
+   make sure that they always have the right value.  These are for
    example:
    -- R1 the returned structure pointer.
    -- R10 the static chain reg.
@@ -228,7 +231,7 @@ extern int i370_enable_pic;
    Notice that it is *almost* safe to mark R11 as available to the allocator.
    By marking it as a call_used_register, in most cases, the compiler
    can handle it being clobbered.  However, there are a few rare
-   circumstances where the register allocator will allocate r11 and 
+   circumstances where the register allocator will allocate r11 and
    also try to use it as the arg pointer ... thus it must be marked fixed.
    I think this is a bug, but I can't track it down...
  */
@@ -242,7 +245,7 @@ extern int i370_enable_pic;
    saved.
    The latter must include the registers where values are returned
    and the register where structure-value addresses are passed.
-   NOTE: all floating registers are undefined across calls.  
+   NOTE: all floating registers are undefined across calls.
 */
 
 #define CALL_USED_REGISTERS 						\
@@ -252,14 +255,14 @@ extern int i370_enable_pic;
 /* Return number of consecutive hard regs needed starting at reg REGNO
    to hold something of mode MODE.
    This is ordinarily the length in words of a value of mode MODE
-   but can be less for certain modes in special long registers.  
+   but can be less for certain modes in special long registers.
    Note that DCmode (complex double) needs two regs.
 */
 #endif /* TARGET_HLASM */
 
 /* ================= */
-#ifdef TARGET_ELF_ABI 
-/* The Linux/ELF ABI uses the same register layout as the 
+#ifdef TARGET_ELF_ABI
+/* The Linux/ELF ABI uses the same register layout as the
    the MVS/OE version, with the following exceptions:
    -- r4 is not used; its role is taken by 0(r13)
    -- r13 is used as a combined argument & frame pointer
@@ -377,13 +380,13 @@ extern int i370_enable_pic;
 #endif /* TARGET_ELF_ABI */
 /* ================= */
 
-/* R10 is register in which static-chain is passed to a function.  
+/* R10 is register in which static-chain is passed to a function.
    Static-chaining is done when a nested function references as a global
    a stack variable of its parent: e.g.
-        int parent_func (int arg) { 
+        int parent_func (int arg) {
              int x;                            // x is in parents stack
              void child_func (void) { x++: }   // child references x as global var
-             ... 
+             ...
         }
  */
 
@@ -393,11 +396,11 @@ extern int i370_enable_pic;
    a function.  This is used only when returning 64-bit long-long in a 32-bit arch
    and when calling functions that return structs by value. e.g.
         typedef struct A_s { int a,b,c; } A_t;
-        A_t fun_returns_value (void) { 
+        A_t fun_returns_value (void) {
             A_t a; a.a=1; a.b=2 a.c=3;
             return a;
-        } 
-   In the above, the storage for the return value is in the callers stack, and 
+        }
+   In the above, the storage for the return value is in the callers stack, and
    the R1 points at that mem location.
  */
 
@@ -486,9 +489,9 @@ enum reg_class
 /* Given an rtx X being reloaded into a reg required to be in class CLASS,
    return the class of reg to actually use.  In general this is just CLASS;
    but on some machines in some cases it is preferable to use a more
-   restrictive class.  
+   restrictive class.
 
-   XXX We reload CONST_INT's into ADDR not DATA regs because on certain 
+   XXX We reload CONST_INT's into ADDR not DATA regs because on certain
    rare occasions when lots of egisters are spilled, reload() will try
    to put a const int into r0 and then use r0 as an index register.
 */
@@ -501,7 +504,7 @@ enum reg_class
      GET_CODE(X) == CONST ? ADDR_REGS : (CLASS))
 
 /* Return the maximum number of consecutive registers needed to represent
-   mode MODE in a register of class CLASS.  
+   mode MODE in a register of class CLASS.
    Note that DCmode (complex double) needs two regs.
 */
 
@@ -933,22 +936,22 @@ enum reg_class
 /* Macro: LEGITIMIZE_ADDRESS(X, OLDX, MODE, WIN)
    Try machine-dependent ways of modifying an illegitimate address
    to be legitimate.  If we find one, return the new, valid address.
-   This macro is used in only one place: `memory_address' in explow.c. 
-  
+   This macro is used in only one place: `memory_address' in explow.c.
+
    Several comments:
    (1) It's not obvious that this macro results in better code
        than its omission does. For historical reasons we leave it in.
-  
+
    (2) This macro may be (???) implicated in the accidental promotion
-       or RS operand to RX operands, which bombs out any RS, SI, SS 
-       instruction that was expecting a simple address.  Note that 
+       or RS operand to RX operands, which bombs out any RS, SI, SS
+       instruction that was expecting a simple address.  Note that
        this occurs fairly rarely ...
-  
+
    (3) There is a bug somewhere that causes either r4 to be spilled,
-       or causes r0 to be used as a base register.  Changeing the macro 
-       below will make the bug move around, but will not make it go away 
+       or causes r0 to be used as a base register.  Changeing the macro
+       below will make the bug move around, but will not make it go away
        ... Note that this is a rare bug ...
-   
+
  */
 
 #define LEGITIMIZE_ADDRESS(X, OLDX, MODE, WIN)				\
@@ -1036,10 +1039,10 @@ enum reg_class
      DEP_INSN through the dependence LINK.  The default is to make no
      adjustment to COST.  This can be used for example to specify to
      the scheduler that an output- or anti-dependence does not incur
-     the same cost as a data-dependence. 
+     the same cost as a data-dependence.
 
-     We will want to use this to indicate that there is a cost associated 
-     with the loading, followed by use of base registers ... 
+     We will want to use this to indicate that there is a cost associated
+     with the loading, followed by use of base registers ...
 #define ADJUST_COST (INSN, LINK, DEP_INSN, COST)
  */
 
@@ -1055,15 +1058,15 @@ enum reg_class
    On the 370, load insns do not alter the cc's.  However, in some
    cases these instructions can make it possibly invalid to use the
    saved cc's.  In those cases we clear out some or all of the saved
-   cc's so they won't be used.  
+   cc's so they won't be used.
 
    Note that only some arith instructions set the CC.  These include
    add, subtract, complement, various shifts.  Note that multiply
    and divide do *not* set set the CC.  Therefore, in the code below,
    don't set the status for MUL, DIV, etc.
 
-   Note that the bitwise ops set the condition code, but not in a 
-   way that we can make use of it. So we treat these as clobbering, 
+   Note that the bitwise ops set the condition code, but not in a
+   way that we can make use of it. So we treat these as clobbering,
    rather than setting the CC.  These are clobbered in the individual
    instruction patterns that use them.  Use CC_STATUS_INIT to clobber.
 */
@@ -1227,9 +1230,9 @@ enum reg_class
   fprintf (FILE, "\tDC\tA(L%d-L%d)\n", VALUE, REL)
 
 /* This is how to output an insn to push a register on the stack.
-    It need not be very fast code.  
-   Right now, PUSH & POP are used only when profiling is enabled, 
-   and then, only to push the static chain reg and the function struct 
+    It need not be very fast code.
+   Right now, PUSH & POP are used only when profiling is enabled,
+   and then, only to push the static chain reg and the function struct
    value reg, and only if those are used.  Since profiling is not
    supported anyway, punt on this.  */
 
@@ -1634,7 +1637,7 @@ enum reg_class
 
 /* ======================================================== */
 
-#ifdef TARGET_ELF_ABI 
+#ifdef TARGET_ELF_ABI
 
 /* How to refer to registers in assembler output.  This sequence is
    indexed by compiler's hard-register-number (see above).  */
@@ -1958,7 +1961,7 @@ abort(); \
 
 #undef ASM_OUTPUT_EXTERNAL
 
-#define ASM_DOUBLE "\t.double"     
+#define ASM_DOUBLE "\t.double"
 
 /* #define ASM_OUTPUT_LABELREF(FILE, NAME) */	/* use gas -- defaults.h */
 
@@ -1977,11 +1980,11 @@ abort(); \
   mvs_check_page (FILE, 4, 0);						\
   fprintf (FILE, "\t.long\t.L%d-.L%d\n", VALUE, REL)
 
-/* Right now, PUSH & POP are used only when profiling is enabled, 
-   and then, only to push the static chain reg and the function struct 
+/* Right now, PUSH & POP are used only when profiling is enabled,
+   and then, only to push the static chain reg and the function struct
    value reg, and only if those are used by the function being profiled.
    We don't need this for profiling, so punt.  */
-#define ASM_OUTPUT_REG_PUSH(FILE, REGNO) 
+#define ASM_OUTPUT_REG_PUSH(FILE, REGNO)
 #define ASM_OUTPUT_REG_POP(FILE, REGNO)	
 
 
@@ -2000,7 +2003,7 @@ abort(); \
 
 /* Implicit library calls should use memcpy, not bcopy, etc.  */
 #define TARGET_MEM_FUNCTIONS
- 
+
 /* Output before read-only data.  */
 #define TEXT_SECTION_ASM_OP "\t.text"
 
@@ -2021,7 +2024,7 @@ abort(); \
 
 #define ASM_OUTPUT_ALIGN(FILE,LOG) \
   if ((LOG)!=0) fprintf ((FILE), "\t.balign %d\n", 1<<(LOG))
- 
+
 /* Globalizing directive for a label.  */
 #define GLOBAL_ASM_OP ".globl "
 
