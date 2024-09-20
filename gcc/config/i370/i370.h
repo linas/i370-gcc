@@ -919,6 +919,8 @@ enum reg_class
 
 /* Recognize any constant value that is a valid address.  */
 
+#ifdef TARGET_HLASM
+/* HLASM passes through i370_encode_section_info() for symbols */
 #define CONSTANT_ADDRESS_P(X)						\
   (GET_CODE (X) == LABEL_REF || GET_CODE (X) == SYMBOL_REF		\
   || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST_DOUBLE		\
@@ -927,6 +929,18 @@ enum reg_class
   || (GET_CODE (X) == CONST						\
 	  && GET_CODE (XEXP (XEXP (X, 0), 0)) == SYMBOL_REF		\
 	  && !SYMBOL_REF_FLAG (XEXP (XEXP (X, 0), 0))))
+#endif
+
+#ifdef TARGET_ELF_ABI
+#define CONSTANT_ADDRESS_P(X)						\
+  (GET_CODE (X) == LABEL_REF || GET_CODE (X) == SYMBOL_REF		\
+  || GET_CODE (X) == CONST_INT || GET_CODE (X) == CONST_DOUBLE		\
+  || (GET_CODE (X) == CONST						\
+	  && GET_CODE (XEXP (XEXP (X, 0), 0)) == LABEL_REF)		\
+  || (GET_CODE (X) == CONST						\
+	  && GET_CODE (XEXP (XEXP (X, 0), 0)) == SYMBOL_REF		\
+	  && !SYMBOL_REF_EXTERNAL_P (XEXP (XEXP (X, 0), 0))))
+#endif
 
 /* Nonzero if the constant value X is a legitimate general operand.
    It is given that X satisfies CONSTANT_P or is a CONST_DOUBLE.  */
