@@ -81,22 +81,15 @@ extern int i370_enable_pic;
    An empty string NAME is used to identify the default VALUE.  */
 
 #define TARGET_SWITCHES							\
-{ { "char-instructions", 1, N_("Generate char instructions")},            \
+{ { "char-instructions", 1, N_("Generate char instructions")},		\
   { "no-char-instructions", -1, N_("Do not generate char instructions")}, \
-  { "pickax", 2, "Experimental i370 PIC"}, \
-  { "no-pickax", -2, "Disable experimental i370 PIC"}, \
+  { "pickax", 2, "Experimental i370 PIC"},				\
+  { "no-pickax", -2, "Disable experimental i370 PIC"},			\
   { "", TARGET_DEFAULT, 0} }
-
-#define TARGET_OPTIONS \
-{ { "csect=", (const char **)&mvs_csect_name, \
-    N_("Set CSECT name")},     \
-  SUBTARGET_OPTIONS    \
-}
 
 #define SUBTARGET_OPTIONS
 
-
-#define REAL_ARITHMETIC
+/* #define REAL_ARITHMETIC */
 
 extern void i370_override_options (void);
 #define OVERRIDE_OPTIONS i370_override_options()
@@ -189,7 +182,7 @@ extern void i370_override_options (void);
  */
 
 #define REG_ALLOC_ORDER							\
-{ 0, 1, 2, 3, 14, 15, 12, 10, 9, 8, 7, 6, 5, 4, 16, 17, 18, 19, 11, 13 }
+   { 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 10, 15, 14, 12, 16, 17, 18, 19, 11, 13 }
 
 /* Standard register usage.  */
 
@@ -1179,32 +1172,32 @@ enum reg_class
 
 #define NOTICE_UPDATE_CC(EXP, INSN)					\
 {									\
-  rtx exp = (EXP);							\
-  if (GET_CODE (exp) == PARALLEL) /* Check this */			\
-    exp = XVECEXP (exp, 0, 0);						\
-  if (GET_CODE (exp) != SET)						\
+  rtx xexp = (EXP);							\
+  if (GET_CODE (xexp) == PARALLEL) /* Check this */			\
+    xexp = XVECEXP (xexp, 0, 0);						\
+  if (GET_CODE (xexp) != SET)						\
     CC_STATUS_INIT;							\
   else									\
     {									\
-      if (XEXP (exp, 0) == cc0_rtx)					\
+      if (XEXP (xexp, 0) == cc0_rtx)					\
 	{								\
-	  cc_status.value1 = XEXP (exp, 0);				\
-	  cc_status.value2 = XEXP (exp, 1);				\
+	  cc_status.value1 = XEXP (xexp, 0);				\
+	  cc_status.value2 = XEXP (xexp, 1);				\
 	  cc_status.flags = 0;						\
 	}								\
       else								\
 	{								\
 	  if (cc_status.value1						\
-	      && reg_mentioned_p (XEXP (exp, 0), cc_status.value1))	\
+	      && reg_mentioned_p (XEXP (xexp, 0), cc_status.value1))	\
 	    cc_status.value1 = 0;					\
 	  if (cc_status.value2						\
-	      && reg_mentioned_p (XEXP (exp, 0), cc_status.value2))	\
+	      && reg_mentioned_p (XEXP (xexp, 0), cc_status.value2))	\
 	    cc_status.value2 = 0;					\
-	  switch (GET_CODE (XEXP (exp, 1)))				\
+	  switch (GET_CODE (XEXP (xexp, 1)))				\
 	    {								\
 	      case PLUS:     case MINUS: case NEG:    			\
 	      case NOT:	 case ABS:					\
-		CC_STATUS_SET (XEXP (exp, 0), XEXP (exp, 1));		\
+		CC_STATUS_SET (XEXP (xexp, 0), XEXP (xexp, 1));		\
 									\
               /* mult and div don't set any cc codes !! */		\
 	      case MULT:  /* case UMULT: */ case DIV:      case UDIV: 	\
@@ -1254,6 +1247,7 @@ enum reg_class
 /* ======================================================== */
 
 #ifdef TARGET_HLASM
+
 #define TEXT_SECTION_ASM_OP "* Program text area"
 #define DATA_SECTION_ASM_OP "* Program data area"
 #define INIT_SECTION_ASM_OP "* Program initialization area"
@@ -1387,6 +1381,15 @@ enum reg_class
 #define ASM_OUTPUT_LABEL(FILE, NAME) 					\
 { assemble_name (FILE, NAME); fputs ("\tEQU\t*\n", FILE); }
 
+#define ASM_OUTPUT_FUNCTION_PREFIX(FILE, NAME)				\
+  mvs_need_to_globalize = 0;						\
+  mvs_need_entry = 0
+
+#if defined(TARGET_DIGNUS) || defined(TARGET_PDPMAC)
+#define ASM_OUTPUT_EXTERNAL(FILE, DECL, NAME)
+#endif
+
+#ifdef TARGET_LE
 #define ASM_OUTPUT_EXTERNAL(FILE, DECL, NAME)				\
 {									\
   char temp[MAX_MVS_LABEL_SIZE + 1];					\
@@ -1420,6 +1423,7 @@ enum reg_class
   mvs_need_entry = 1;							\
 }
 #endif
+
 #ifdef TARGET_PDPMAC
 #define ASM_GLOBALIZE_LABEL(FILE, NAME)					\
 { 									\
@@ -1443,6 +1447,7 @@ enum reg_class
   mvs_need_entry = 1;							\
 }
 #endif
+
 #ifdef TARGET_LE
 #define ASM_GLOBALIZE_LABEL(FILE, NAME)					\
 { 									\
@@ -1456,7 +1461,9 @@ enum reg_class
   fputs ("\n", FILE);							\
 }
 #endif
+
 #else /* !TARGET_ALIASES */
+
 #ifdef TARGET_DIGNUS
 #define ASM_GLOBALIZE_LABEL(FILE, NAME)					\
 { 									\
@@ -1478,6 +1485,7 @@ enum reg_class
   mvs_need_entry = 1;							\
 }
 #endif
+
 #ifdef TARGET_PDPMAC
 #ifdef TARGET_VSE
 #define ASM_GLOBALIZE_LABEL(FILE, NAME)					\
@@ -1510,7 +1518,9 @@ enum reg_class
     }									\
   mvs_need_entry = 1;							\
 }
+
 #else
+
 #define ASM_GLOBALIZE_LABEL(FILE, NAME)					\
 { 									\
   char temp[MAX_MVS_LABEL_SIZE + 1];					\
@@ -1540,8 +1550,8 @@ enum reg_class
 /* MVS externals are limited to 8 characters, upper case only.
    The '_' is mapped to '@', except for MVS functions, then '#'.  */
 
-
 #ifdef TARGET_ALIASES
+
 #if defined(TARGET_DIGNUS) || defined(TARGET_PDPMAC)
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
 {									\
@@ -1551,6 +1561,7 @@ enum reg_class
   fprintf (FILE, "%s", temp);						\
 }
 #endif
+
 #ifdef TARGET_LE
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
 {									\
@@ -1568,7 +1579,9 @@ enum reg_class
   fprintf (FILE, "%s", temp);						\
 }
 #endif
+
 #else /* !TARGET_ALIASES */
+
 #if defined(TARGET_DIGNUS) || defined(TARGET_PDPMAC)
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
 {									\
@@ -1581,6 +1594,7 @@ enum reg_class
   fprintf (FILE, "%s", temp);						\
 }
 #endif
+
 #ifdef TARGET_LE
 #define ASM_OUTPUT_LABELREF(FILE, NAME)					\
 {									\
@@ -1598,6 +1612,7 @@ enum reg_class
   fprintf (FILE, "%s", temp);						\
 }
 #endif
+
 #endif /* TARGET_ALIASES */
 
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL, PREFIX, NUM)			\
