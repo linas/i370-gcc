@@ -39,8 +39,7 @@ Boston, MA 02111-1307, USA.  */
    anyone clarify?  */
 
 void
-i370_pr_map (pfile)
-     cpp_reader *pfile ATTRIBUTE_UNUSED;
+i370_pr_map (cpp_reader *pfile ATTRIBUTE_UNUSED)
 {
   tree name, alias, x;
 
@@ -68,8 +67,7 @@ i370_pr_map (pfile)
    anyone clarify?  */
 
 void
-i370_pr_linkage (pfile)
-     cpp_reader *pfile ATTRIBUTE_UNUSED;
+i370_pr_linkage (cpp_reader *pfile ATTRIBUTE_UNUSED)
 {
   tree name, mode, x;
 
@@ -94,8 +92,7 @@ i370_pr_linkage (pfile)
    anyone clarify?  */
 
 void
-i370_pr_checkout (pfile)
-     cpp_reader *pfile ATTRIBUTE_UNUSED;
+i370_pr_checkout (cpp_reader *pfile ATTRIBUTE_UNUSED)
 {
   tree mode, x;
 
@@ -117,12 +114,9 @@ i370_pr_checkout (pfile)
    We just ignore. */
 
 void
-i370_pr_skipit (pfile)
-     cpp_reader *pfile ATTRIBUTE_UNUSED;
+i370_pr_skipit (cpp_reader *pfile ATTRIBUTE_UNUSED)
 {
-
   return;
-
 }
 
 #endif

@@ -48,6 +48,13 @@ extern int mvs_check_alias (const char *, char *);
 extern void check_label_emit (void);
 extern char *mvs_make_float (REAL_VALUE_TYPE);
 
-extern void i370_pr_map (struct cpp_reader *);
+#ifdef GCC_C_PRAGMA_H
+#include "cpplib.h" /* for typedef cpp_reader */
+extern void i370_pr_map       (cpp_reader *);
+extern void i370_pr_skipit    (cpp_reader *);
+extern void i370_pr_linkage   (cpp_reader *);
+extern void i370_pr_checkout  (cpp_reader *);
+#endif
+
 
 #endif /* ! GCC_I370_PROTOS_H */
