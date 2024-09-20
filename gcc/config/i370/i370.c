@@ -728,6 +728,21 @@ check_label_emit (void)
 }
 #endif /* TARGET_HLASM */
 
+#ifdef TARGET_PDOSGB
+void
+check_label_emit (void)
+{
+  if (mvs_need_base_reload)
+    {
+      mvs_need_base_reload = 0;
+      mvs_page_code += 4;
+      fprintf (assembler_source, "\tL\tr%d,%d(,r%d)\n",
+          BASE_REGISTER, (mvs_page_num - function_base_page) * 4,
+          PAGE_REGISTER);
+    }
+}
+#endif /* TARGET_PDOSGB */
+
 #ifdef TARGET_ELF_ABI
 void
 check_label_emit (void)
@@ -938,19 +953,19 @@ mvs_check_page (FILE *file, int code, int lit)
          dumped prior to the jump table generation. */
       if (mvs_case_code == 0)
         {
-          fprintf (assembler_source, "\tB\tPGE%d\n", mvs_page_num);
+          fprintf (assembler_source, "\tB\t@@PGE%d\n", mvs_page_num);
           fprintf (assembler_source, "\tDS\t0F\n");
           fprintf (assembler_source, "\tLTORG\n");
         }
       fprintf (assembler_source, "\tDS\t0F\n");
-      fprintf (assembler_source, "PGE%d\tEQU\t*\n", mvs_page_num);
+      fprintf (assembler_source, "@@PGE%d\tEQU\t*\n", mvs_page_num);
       fprintf (assembler_source, "\tDROP\t%d\n", BASE_REGISTER);
       mvs_page_num++;
       /* Safe to use BASR not BALR, since we are
        * not switching addressing mode here ...  */
       fprintf (assembler_source, "\tBASR\t%d,0\n", BASE_REGISTER);
       fprintf (assembler_source, "\tUSING\t*,%d\n", BASE_REGISTER);
-      fprintf (assembler_source, "PG%d\tEQU\t*\n", mvs_page_num);
+      fprintf (assembler_source, "@@PG%d\tEQU\t*\n", mvs_page_num);
       mvs_page_code = code;
       mvs_page_lit = lit;
       return 1;
@@ -960,6 +975,43 @@ mvs_check_page (FILE *file, int code, int lit)
   return 0;
 }
 #endif /* TARGET_HLASM */
+
+
+#ifdef TARGET_PDOSGB
+int
+mvs_check_page (FILE *file, int code, int lit)
+{
+  if (file)
+    assembler_source = file;
+
+  if (mvs_page_code + code + mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
+    {
+      /* no need to dump literals if we're at the end of
+         a case statement - they will already have been
+	 dumped prior to the jump table generation. */
+      if (mvs_case_code == 0)
+        {
+          fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
+	  fprintf (assembler_source, "\t.balign\t4\n");
+	  fprintf (assembler_source, "\t.ltorg\n");
+	}
+
+      fprintf (assembler_source, "\t.balign\t4\n");
+      fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+      fprintf (assembler_source, "\t.drop\tr%d\n", BASE_REGISTER);
+      mvs_page_num++;
+      fprintf (assembler_source, "\tBALR\tr%d,0\n", BASE_REGISTER);
+      fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+      fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+      mvs_page_code = code;
+      mvs_page_lit = lit;
+      return 1;
+    }
+  mvs_page_code += code;
+  mvs_page_lit += lit;
+  return 0;
+}
+#endif /* TARGET_PDOSGB */
 
 
 #ifdef TARGET_ELF_ABI
@@ -1039,7 +1091,7 @@ mvs_check_page (FILE *file, int code, int lit)
 
 /* ===================================================== */
 /* defines and functions specific to the HLASM assembler */
-#ifdef TARGET_HLASM
+#if defined(TARGET_HLASM) || defined(TARGET_PDOSGB)
 
 /* Check for C/370 runtime function, they don't use standard calling
    conventions.  True is returned if the function is in the table.
@@ -1646,7 +1698,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
 	   STACK_FRAME_BASE + l + current_function_outgoing_args_size,
 	   BASE_REGISTER,
 	   mvs_need_entry ? "YES" : "NO");
-  fprintf (f, "\tB\tFEN%d\n", mvs_page_num);
+  fprintf (f, "\tB\t@@FEN%d\n", mvs_page_num);
 #ifdef TARGET_DIGNUS
   fprintf (f, "@FRAMESIZE_%d DC F'%d'\n",
 	   mvs_page_num,
@@ -1655,7 +1707,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
 #ifdef TARGET_PDPMAC
   fprintf (f, "\tLTORG\n");
 #endif
-  fprintf (f, "FEN%d\tEQU\t*\n", mvs_page_num);
+  fprintf (f, "@@FEN%d\tEQU\t*\n", mvs_page_num);
   fprintf (f, "\tDROP\t%d\n", BASE_REGISTER);
   fprintf (f, "\tBALR\t%d,0\n", BASE_REGISTER);
   fprintf (f, "\tUSING\t*,%d\n", BASE_REGISTER);
@@ -1709,7 +1761,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
 #endif
   fprintf (f, "\tUSING\t*,15\n");
   assemble_name (f, mvs_function_name);
-  fprintf (f, "\tB\tFENT%03d\n", function_label_index);
+  fprintf (f, "\tB\t@@FENT%03d\n", function_label_index);
   fprintf (f, "\tDC\tAL1(FNAM%03d+4-*)\n", function_label_index);
   fprintf (f, "\tDC\tX'CE',X'A0',AL1(16)\n");
   fprintf (f, "\tDC\tAL4(FPPA%03d)\n", function_label_index);
@@ -1728,7 +1780,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   		 function_year, function_month, function_day,
     		 function_hour, function_minute);
   fprintf (f, "\tDC\tCL2'01',CL4'0100'\n");
-  fprintf (f, "FENT%03d\tDS\t0H\n", function_label_index);
+  fprintf (f, "@@FENT%03d\tDS\t0H\n", function_label_index);
   fprintf (f, "\tSTM\t14,12,12(13)\n");
   fprintf (f, "\tL\t2,76(,13)\n");
   fprintf (f, "\tL\t0,16(,15)\n");
@@ -1823,9 +1875,9 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
 
 #endif /* TARGET_MACROS */
 
-  fprintf (f, "PG%d\tEQU\t*\n", mvs_page_num );
+  fprintf (f, "@@PG%d\tEQU\t*\n", mvs_page_num );
   fprintf (f, "\tLR\t11,1\n");
-  fprintf (f, "\tL\t%d,=A(PGT%d)\n", PAGE_REGISTER, mvs_page_num);
+  fprintf (f, "\tL\t%d,=A(@@PGT%d)\n", PAGE_REGISTER, mvs_page_num);
   fprintf (f, "* Function %.*s code\n", nlen, mvs_function_name);
 
   mvs_free_label_list ();
@@ -2017,11 +2069,11 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   fprintf (file, "\tLTORG\n");
   fprintf (file, "* Function %.*s page table\n", nlen, mvs_function_name);
   fprintf (file, "\tDS\t0F\n");
-  fprintf (file, "PGT%d\tEQU\t*\n", function_base_page);
+  fprintf (file, "@@PGT%d\tEQU\t*\n", function_base_page);
 
   mvs_free_label_list();
   for (i = function_base_page; i < mvs_page_num; i++)
-    fprintf (file, "\tDC\tA(PG%d)\n", i);
+    fprintf (file, "\tDC\tA(@@PG%d)\n", i);
   mvs_need_entry = 0;
 }
 
