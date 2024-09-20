@@ -1801,7 +1801,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   function_first = 1;
   function_label_index ++;
 }
-#else /* TARGET_LE */
+#endif /* TARGET_LE */
 
 #ifdef XXX_WHAT
   if (!function_first)
@@ -1871,7 +1871,6 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   function_first = 1;
   function_label_index += 2;
 #endif /* XXX_WHAT */
-#endif /* TARGET_LE */
 
 #endif /* TARGET_MACROS */
 
@@ -1889,6 +1888,67 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   /* find all labels in this routine */
   i370_label_scan ();
 }
+
+#ifdef TARGET_PDOSGB
+static void
+i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
+{
+  fprintf (f, "* %c-func %s prologue\n",
+           mvs_need_entry ? 'X' : 'S',
+           CURRFUNC);
+
+  if (mvs_need_entry)
+  {
+    fprintf(f, ".globl ");
+    assemble_name (f, mvs_function_name);
+    fprintf(f, "\n");
+  }
+
+  fprintf (f, "\t.balign 2\n");
+  assemble_name (f, mvs_function_name);
+  fprintf (f, ":\n");
+  fprintf (f, "\t.using .,r15\n");
+  fprintf (f, "\tB\t.LFEO%d:\n", mvs_page_num);
+  fprintf (f, "\t.byte %d\n", strlen(mvs_function_name));
+  /* don't use "string" so that there is no NUL terminator,
+     so that we can match MVS behavior */
+  fprintf (f, "\t.ascii \"%s\"\n", mvs_function_name);
+  fprintf (f, "\t.balign 2\n");
+  fprintf (f, ".LFEO%d:\n", mvs_page_num);
+
+  fprintf (f, "\tSTM\tr14,r12,12(r13)\n");
+  fprintf (f, "\tL\tr15,76(,r13)\n");
+  fprintf (f, "\tST\tr13,4(,r15)\n");
+  fprintf (f, "\tST\tr15,8(,r13)\n");
+  fprintf (f, "\tLR\tr13,r15\n");
+  fprintf (f, "\tLR\tr11,r1\n");
+
+  fprintf (f, ".LFEN%d:\n", mvs_page_num);
+  fprintf (f, "\tBALR\tr12,r0\n");
+  fprintf (f, "\t.drop r15\n");
+  fprintf (f, "\t.using .,r12\n");
+
+  fprintf (f, ".LPG%d:\n", mvs_page_num );
+  /* defer r15 manipulation until here so that the literal is
+     within range of the new base register */
+  fprintf (f,
+           "\tA\tr15,=A(%d)\n",
+           STACK_FRAME_BASE + l + current_function_outgoing_args_size);
+  fprintf (f, "\tST\tr15,76(r13)\n");
+
+  fprintf (f, "\tL\tr%d,=A(.LPGT%d)\n", PAGE_REGISTER, mvs_page_num);
+  fprintf (f, "* Function %s code\n", CURRFUNC);
+
+  mvs_free_label_list ();
+  mvs_page_code = 6;
+  mvs_page_lit = 4;
+  mvs_check_page (f, 0, 0);
+  function_base_page = mvs_page_num;
+
+  /* find all labels in this routine */
+  i370_label_scan ();
+}
+#endif /* TARGET_PDOSGB */
 
 static void
 i370_globalize_label (FILE *stream, const char *name)
@@ -2077,6 +2137,28 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   mvs_need_entry = 0;
 }
 
+#if defined(TARGET_PDOSGB)
+static void
+i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
+{
+  fprintf (file, "\tL\tr13,4(,r13)\n");
+  fprintf (file, "\tL\tr14,12(r13,r0)\n");
+  fprintf (file, "\tLM\t0,12,20(r13)\n");
+  fprintf (file, "\tBR\tr14\n");
+  fprintf (file, "* Function %s literal pool\n", CURRFUNC);
+  fprintf (file, "\t.balign\t4\n" );
+  fprintf (file, "\t.ltorg\n");
+  fprintf (file, "* Function %s page table\n", CURRFUNC);
+  fprintf (file, "\t.balign\t4\n");
+  fprintf (file, ".LPGT%d:\n", function_base_page);
+
+  mvs_free_label_list();
+  for (i = function_base_page; i < mvs_page_num; i++)
+    fprintf (file, "\t.long\t.LPG%d\n", i);
+  mvs_need_entry = 0;
+}
+
+#endif /* TARGET_PDOSGB */
 
 static void
 i370_file_start (void)
