@@ -1637,18 +1637,6 @@ enum reg_class
 #define ASM_GENERATE_INTERNAL_LABEL(LABEL, PREFIX, NUM)			\
   sprintf (LABEL, "*@@%s%d", PREFIX, NUM)
 
-/* Generate internal label.  Since we can branch here from off page, we
-   must reload the base register.  */
-
-#define ASM_OUTPUT_INTERNAL_LABEL(FILE, PREFIX, NUM) 			\
-{									\
-  if (!strcmp (PREFIX,"L"))						\
-    {									\
-      mvs_add_label(NUM);						\
-    }									\
-  fprintf (FILE, "@@%s%d\tEQU\t*\n", PREFIX, NUM);			\
-}
-
 /* Generate case label.  For HLASM we can change to the data CSECT
    and put the vectors out of the code body. The assembler just
    concatenates CSECTs with the same name.  */
@@ -2519,6 +2507,8 @@ abort(); \
 /* #define ASM_OUTPUT_LABELREF(FILE, NAME) */	/* use gas -- defaults.h */
 
 /* let config/svr4.h define this ...
+ * XXX FIXME: what if it branches off the page!??
+ * See i370_internal_label
  *  #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)
  *    fprintf (FILE, "%s%d:\n", PREFIX, NUM)
  */
