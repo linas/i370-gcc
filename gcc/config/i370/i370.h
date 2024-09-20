@@ -677,7 +677,15 @@ enum reg_class
 
 /* ================= */
 #ifdef TARGET_ELF_ABI
-/* Here's the stack layout as currently designed:
+/*
+   The ELF target has the stackframe growing upward, and thus
+   ... #define STACK_GROWS_DOWNWARD
+   ... #define FRAME_GROWS_DOWNWARD
+   are never set. There's some experimentation with having the stack
+   grow the other way, in the i370.c file, but it is incomplete.
+   Note that STARTING_FRAME_OFFSET would have to be fixed.
+
+   Here's the stack layout as currently designed:
 
    r11 -- top of stack aka stack pointer
    -4(r11) -- last local (stack) variable)
