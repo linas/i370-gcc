@@ -46,6 +46,7 @@ extern int mvs_need_alias (const char *);
 extern int mvs_get_alias (const char *, char *);
 extern int mvs_check_alias (const char *, char *);
 extern void check_label_emit (void);
+extern char *mvs_make_float (REAL_VALUE_TYPE);
 
 extern void i370_pr_map (struct cpp_reader *);
 

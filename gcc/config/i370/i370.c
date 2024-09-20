@@ -371,6 +371,31 @@ i370_strip_name_encoding (const char *s)
 #endif /* TARGET_HLASM */
 
 /* ===================================================== */
+
+/* Convert a float to a printable form.  */
+
+char *
+mvs_make_float (REAL_VALUE_TYPE r)
+{
+   char *p;
+   static char buf[50];
+
+   real_to_decimal (buf, &r, sizeof (buf), 0, 1);
+
+   for (p = buf; *p; p++)
+      if (ISLOWER(*p)) *p = TOUPPER(*p);
+
+   if ((p = strrchr (buf, 'E')) != NULL)
+   {
+      char *t = p;
+      for (p--; *p == '0'; p--) ;
+      if (*p == '.') p++;
+      strcpy (++p, t);
+   }
+   return (buf);
+}
+
+/* ===================================================== */
 /* The following three routines are used to determine whether
    a branch target is on this page, or is a far jump.  We use
    the "length" attr on an insn [(set_atter "length" "4")]
