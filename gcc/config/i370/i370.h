@@ -87,9 +87,28 @@ extern int i370_enable_pic;
   { "no-pickax", -2, "Disable experimental i370 PIC"},			\
   { "", TARGET_DEFAULT, 0} }
 
-#define SUBTARGET_OPTIONS
+/* The desired CSECT name */
+extern char *mvs_csect_name;
 
-/* #define REAL_ARITHMETIC */
+#define TARGET_OPTIONS							\
+{ { "csect=", (const char **) &mvs_csect_name,				\
+    N_("Set CSECT name")},						\
+  SUBTARGET_OPTIONS							\
+}
+
+#ifdef TARGET_HLASM
+/* HLASM requires #pragma map.  */
+#define REGISTER_TARGET_PRAGMAS() \
+  do { \
+  cpp_register_pragma (PFILE, 0, "map", i370_pr_map); \
+  cpp_register_pragma (PFILE, 0, "nomargins", i370_pr_skipit); \
+  cpp_register_pragma (PFILE, 0, "nosequence", i370_pr_skipit); \
+  cpp_register_pragma (PFILE, 0, "checkout", i370_pr_checkout); \
+  cpp_register_pragma (PFILE, 0, "linkage", i370_pr_linkage); \
+  } while(0)
+#endif /* TARGET_HLASM */
+
+#define SUBTARGET_OPTIONS
 
 extern void i370_override_options (void);
 #define OVERRIDE_OPTIONS i370_override_options()
@@ -153,6 +172,8 @@ extern void i370_override_options (void);
 
 #define TARGET_FLOAT_FORMAT IBM_FLOAT_FORMAT
 
+/* #define REAL_ARITHMETIC */
+
 /* Define character mapping for cross-compiling.  */
 /* but only define it if really needed, since otherwise it will break builds */
 
@@ -163,11 +184,6 @@ extern void i370_override_options (void);
 #define MAP_CHARACTER(c) ((char)mvs_map_char (c))
 #endif
 #endif
-
-#ifdef TARGET_HLASM
-/* HLASM requires #pragma map.  */
-#define REGISTER_TARGET_PRAGMAS() c_register_pragma (0, "map", i370_pr_map)
-#endif /* TARGET_HLASM */
 
 /* Define maximum length of page minus page escape overhead.  */
 
