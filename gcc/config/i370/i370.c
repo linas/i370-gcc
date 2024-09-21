@@ -1378,7 +1378,6 @@ mvs_check_alias (const char *realname, char *aliasname)
 #endif /* TARGET_HLASM */
 
 /* ===================================================== */
-/* ===================================================== */
 /* Defines and functions specific to the gas assembler. */
 #ifdef TARGET_ELF_ABI
 
@@ -1553,6 +1552,553 @@ unsigned_jump_follows_p (register rtx insn)
       return coda != GE && coda != GT && coda != LE && coda != LT;
     }
 }
+
+/* ===================================================== */
+
+#ifdef TARGET_HLASM
+
+/* Print operand XV (an rtx) in assembler syntax to file fh.
+   CODE is a letter or dot (`z' in `%z0') or 0 if no letter was specified.
+   For `%' followed by punctuation, CODE is the punctuation and XV is null.  */
+
+void
+i370_print_operand (FILE *fh, rtx XV, int CODE)
+{
+  switch (GET_CODE (XV))
+    {
+      static char curreg[4];
+      case REG:
+	if (CODE == 'N')
+	    strcpy (curreg, reg_names[REGNO (XV) + 1]);
+	else
+	    strcpy (curreg, reg_names[REGNO (XV)]);
+	fprintf (fh, "%s", curreg);
+	break;
+      case MEM:
+	{
+	  rtx addr = XEXP (XV, 0);
+	  if (CODE == 'O')
+	    {
+	      if (GET_CODE (addr) == PLUS)
+		fprintf (fh, HOST_WIDE_INT_PRINT_DEC, INTVAL (XEXP (addr, 1)));
+	      else
+		fprintf (fh, "0");
+	    }
+	  else if (CODE == 'R')
+	    {
+	      if (GET_CODE (addr) == PLUS)
+		fprintf (fh, "%s", reg_names[REGNO (XEXP (addr, 0))]);\
+	      else
+		fprintf (fh, "%s", reg_names[REGNO (addr)]);
+	    }
+	  else
+	    output_address (XEXP (XV, 0));
+	}
+	break;
+      case SYMBOL_REF:
+      case LABEL_REF:
+	mvs_page_lit += 4;
+	if (SYMBOL_REF_FLAG (XV))
+	  {
+	    fprintf (fh, "=V(");
+	    output_addr_const (fh, XV);
+	    fprintf (fh, ")");
+	    mvs_mark_alias (XSTR(XV,0));
+	  }
+	else
+	  {
+	    fprintf (fh, "=A(");
+	    output_addr_const (fh, XV);
+	    fprintf (fh, ")");
+	  }
+	break;
+      case CONST_INT:
+	if (CODE == 'B')
+	  fprintf (fh, "%d", (int) (INTVAL (XV) & 0xff));
+	else if (CODE == 'X')
+	  fprintf (fh, "%02X", (int) (INTVAL (XV) & 0xff));
+	else if (CODE == 'h')
+	  fprintf (fh, HOST_WIDE_INT_PRINT_DEC, (INTVAL (XV) << 16) >> 16);
+	else if (CODE == 'H')
+	  {
+	    mvs_page_lit += 2;
+	    fprintf (fh, "=H'" HOST_WIDE_INT_PRINT_DEC "'", (INTVAL (XV) << 16) >> 16);
+	  }
+	else if (CODE == 'K')
+	  {
+            /* auto sign-extension of signed 16-bit to signed 32-bit */
+	    mvs_page_lit += 4;
+	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'", (INTVAL (XV) << 16) >> 16);
+	  }
+	else if (CODE == 'W')
+	  {
+            /* hand-built sign-extension of signed 32-bit to 64-bit */
+	    mvs_page_lit += 8;
+	    if (0 <=  INTVAL (XV)) {
+	       fprintf (fh, "=XL8'00000000");
+            } else {
+	       fprintf (fh, "=XL8'FFFFFFFF");
+            }
+	    fprintf (fh, "%08X'", INTVAL (XV));
+	  }
+	else
+	  {
+	    mvs_page_lit += 4;
+	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'", INTVAL (XV));
+	  }
+	break;
+      case CONST_DOUBLE:
+	if (GET_MODE (XV) == DImode)
+	  {
+	    if (CODE == 'M')
+	      {
+		mvs_page_lit += 4;
+		fprintf (fh, "=XL4'%08X'", CONST_DOUBLE_LOW (XV));
+	      }
+	    else if (CODE == 'L')
+	      {
+		mvs_page_lit += 4;
+		fprintf (fh, "=XL4'%08X'", CONST_DOUBLE_HIGH (XV));
+	      }
+	    else
+	      {
+		mvs_page_lit += 8;
+		fprintf (fh, "=XL8'%08X%08X'", CONST_DOUBLE_LOW (XV),
+			CONST_DOUBLE_HIGH (XV));
+	      }
+	  }
+	else
+	  {
+	    if (GET_MODE (XV) == SFmode)
+	      {
+	        REAL_VALUE_TYPE rval;
+	        REAL_VALUE_FROM_CONST_DOUBLE(rval, XV);
+		mvs_page_lit += 4;
+		fprintf (fh, "=E'%s'", mvs_make_float(rval));
+	      }
+	    else
+	    if (GET_MODE (XV) == DFmode)
+	      {
+	        REAL_VALUE_TYPE rval;
+	        REAL_VALUE_FROM_CONST_DOUBLE(rval, XV);
+		mvs_page_lit += 8;
+		fprintf (fh, "=D'%s'", mvs_make_float(rval));
+	      }
+	    else
+	      {
+		mvs_page_lit += 8;
+		fprintf (fh, "=XL8'%08X%08X'",
+			CONST_DOUBLE_HIGH (XV), CONST_DOUBLE_LOW (XV));
+	      }
+	  }
+	break;
+      case CONST:
+	if (GET_CODE (XEXP (XV, 0)) == PLUS
+	   && GET_CODE (XEXP (XEXP (XV, 0), 0)) == SYMBOL_REF)
+	  {
+	    mvs_page_lit += 4;
+	    if (SYMBOL_REF_FLAG (XEXP (XEXP (XV, 0), 0)))
+	      {
+		int xx = INTVAL (XEXP (XEXP (XV, 0), 1));
+		fprintf (fh, "=V(");
+		ASM_OUTPUT_LABELREF (fh,
+				  XSTR (XEXP (XEXP (XV, 0), 0), 0));
+		if ((unsigned)xx < 4096)
+		  fprintf (fh, ")\n\tLA\t%s,%d(0,%s)", curreg,
+				  xx,
+				  curreg);
+		else
+		  fprintf (fh, ")\n\tA\t%s,=F'%d'", curreg,
+				  xx);
+		mvs_mark_alias (XSTR (XEXP (XEXP (XV, 0), 0), 0));
+	      }
+	    else
+	      {
+		fprintf (fh, "=A(");
+		output_addr_const (fh, XV);
+		fprintf (fh, ")");
+	      }
+	  }
+	else
+	  {
+	    mvs_page_lit += 4;
+	    fprintf (fh, "=F'");
+	    output_addr_const (fh, XV);
+	    fprintf (fh, "'");
+	  }
+	break;
+      default:
+	abort();
+    }
+}
+
+void
+i370_print_operand_address (FILE *fh, rtx ADDR)
+{
+  rtx breg, xreg, offset, plus;
+
+  switch (GET_CODE (ADDR))
+    {
+      case REG:
+	fprintf (fh, "0(%s)", reg_names[REGNO (ADDR)]);
+	break;
+      case PLUS:
+	breg = 0;
+	xreg = 0;
+	offset = 0;
+	if (GET_CODE (XEXP (ADDR, 0)) == PLUS)
+	  {
+	    if (GET_CODE (XEXP (ADDR, 1)) == REG)
+	      breg = XEXP (ADDR, 1);
+	    else
+	      offset = XEXP (ADDR, 1);
+	    plus = XEXP (ADDR, 0);
+	  }
+	else
+	  {
+	    if (GET_CODE (XEXP (ADDR, 0)) == REG)
+	      breg = XEXP (ADDR, 0);
+	    else
+	      offset = XEXP (ADDR, 0);
+	    plus = XEXP (ADDR, 1);
+	  }
+	if (GET_CODE (plus) == PLUS)
+	  {
+	    if (GET_CODE (XEXP (plus, 0)) == REG)
+	      {
+		if (breg)
+		  xreg = XEXP (plus, 0);
+		else
+		  breg = XEXP (plus, 0);
+	      }
+	    else
+	      {
+		offset = XEXP (plus, 0);
+	      }
+	    if (GET_CODE (XEXP (plus, 1)) == REG)
+	      {
+		if (breg)
+		  xreg = XEXP (plus, 1);
+		else
+		  breg = XEXP (plus, 1);
+	      }
+	    else
+	      {
+		offset = XEXP (plus, 1);
+	      }
+	  }
+	else if (GET_CODE (plus) == REG)
+	  {
+	    if (breg)
+	      xreg = plus;
+	    else
+	      breg = plus;
+	  }
+	else
+	  {
+	    offset = plus;
+	  }
+	if (offset)
+	  {
+	    if (GET_CODE (offset) == LABEL_REF)
+	      fprintf (fh, "@@L%d",
+			CODE_LABEL_NUMBER (XEXP (offset, 0)));
+	    else
+	      output_addr_const (fh, offset);
+	  }
+	else
+	  fprintf (fh, "0");
+	if (xreg)
+	    fprintf (fh, "(%s,%s)",
+		    reg_names[REGNO (xreg)], reg_names[REGNO (breg)]);
+	else
+	  fprintf (fh, "(%s)", reg_names[REGNO (breg)]);
+	break;
+      default:
+	mvs_page_lit += 4;
+	if (SYMBOL_REF_FLAG (ADDR))
+	  {
+	    fprintf (fh, "=V(");
+	    output_addr_const (fh, ADDR);
+	    fprintf (fh, ")");
+	    mvs_mark_alias (XSTR (ADDR, 0));
+	  }
+	else
+	  {
+	    fprintf (fh, "=A(");
+	    output_addr_const (fh, ADDR);
+	    fprintf (fh, ")");
+	  }
+	break;
+    }
+}
+
+#endif /* TARGET_HLASM */
+
+/* ======================================================== */
+
+#ifdef TARGET_ELF_ABI
+
+/* Print operand XV (an rtx) in assembler syntax to file fh.
+   CODE is a letter or dot (`z' in `%z0') or 0 if no letter was specified.
+   For `%' followed by punctuation, CODE is the punctuation and XV is null.  */
+
+void
+i370_print_operand (FILE *fh, rtx XV, int CODE)
+{
+  switch (GET_CODE (XV))
+    {
+      static char curreg[4];
+      case REG:
+	if (CODE == 'N')
+	    strcpy (curreg, reg_names[REGNO (XV) + 1]);
+	else
+	    strcpy (curreg, reg_names[REGNO (XV)]);
+	fprintf (fh, "%s", curreg);
+	break;
+      case MEM:
+	{
+	  rtx addr = XEXP (XV, 0);
+	  if (CODE == 'O')
+	    {
+	      if (GET_CODE (addr) == PLUS)
+		fprintf (fh, HOST_WIDE_INT_PRINT_DEC, INTVAL (XEXP (addr, 1)));
+	      else
+		fprintf (fh, "0");
+	    }
+	  else if (CODE == 'R')
+	    {
+	      if (GET_CODE (addr) == PLUS)
+		fprintf (fh, "%s", reg_names[REGNO (XEXP (addr, 0))]);\
+	      else
+		fprintf (fh, "%s", reg_names[REGNO (addr)]);
+	    }
+	  else
+	    output_address (XEXP (XV, 0));
+	}
+	break;
+      case SYMBOL_REF:
+      case LABEL_REF:
+	mvs_page_lit += 4;
+        if (SYMBOL_REF_EXTERNAL_P (XV)) fprintf (fh, "=V(");
+        else                      fprintf (fh, "=A(");
+        output_addr_const (fh, XV);
+        fprintf (fh, ")");
+	break;
+      case CONST_INT:
+	if (CODE == 'B')
+	  fprintf (fh, "%d", (int) (INTVAL (XV) & 0xff));
+	else if (CODE == 'X')
+	  fprintf (fh, "%02X", (int) (INTVAL (XV) & 0xff));
+	else if (CODE == 'h')
+	  fprintf (fh, HOST_WIDE_INT_PRINT_DEC, (INTVAL (XV) << 16) >> 16);
+	else if (CODE == 'H')
+	  {
+	    mvs_page_lit += 2;
+	    fprintf (fh, "=H'" HOST_WIDE_INT_PRINT_DEC "'",
+		     (INTVAL (XV) << 16) >> 16);
+	  }
+	else if (CODE == 'K')
+	  {
+            /* auto sign-extension of signed 16-bit to signed 32-bit */
+	    mvs_page_lit += 4;
+	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'",
+		     (INTVAL (XV) << 16) >> 16);
+	  }
+	else if (CODE == 'W')
+	  {
+            /* hand-built sign-extension of signed 32-bit to 64-bit */
+	    mvs_page_lit += 8;
+	    if (0 <=  INTVAL (XV)) {
+	       fprintf (fh, "=XL8'00000000");
+            } else {
+	       fprintf (fh, "=XL8'FFFFFFFF");
+            }
+	    fprintf (fh, "%08X'", INTVAL (XV));
+	  }
+	else
+	  {
+	    mvs_page_lit += 4;
+	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'", INTVAL (XV));
+	  }
+	break;
+      case CONST_DOUBLE:
+	if (GET_MODE (XV) == DImode)
+	  {
+	    if (CODE == 'M')
+	      {
+		mvs_page_lit += 4;
+		fprintf (fh, "=XL4'%08X'", CONST_DOUBLE_LOW (XV));
+	      }
+	    else if (CODE == 'L')
+	      {
+		mvs_page_lit += 4;
+		fprintf (fh, "=XL4'%08X'", CONST_DOUBLE_HIGH (XV));
+	      }
+	    else
+	      {
+		mvs_page_lit += 8;
+		fprintf (fh, "=yyyyXL8'%08X%08X'",
+			CONST_DOUBLE_HIGH (XV), CONST_DOUBLE_LOW (XV));
+	      }
+	  }
+	else
+	  {
+	    if (GET_MODE (XV) == SFmode)
+	      {
+	        REAL_VALUE_TYPE rval;
+	        REAL_VALUE_FROM_CONST_DOUBLE(rval, XV);
+		mvs_page_lit += 4;
+		fprintf (fh, "=E'%s'", mvs_make_float(rval));
+	      }
+	    else
+	    if (GET_MODE (XV) == DFmode)
+	      {
+	        REAL_VALUE_TYPE rval;
+	        REAL_VALUE_FROM_CONST_DOUBLE(rval, XV);
+		mvs_page_lit += 8;
+		fprintf (fh, "=D'%s'", mvs_make_float(rval));
+	      }
+	    else /* VOIDmode !?!? strange but true ...  */
+	      {
+		mvs_page_lit += 8;
+		fprintf (fh, "=XL8'%08X%08X'",
+			CONST_DOUBLE_HIGH (XV), CONST_DOUBLE_LOW (XV));
+	      }
+	  }
+	break;
+      case CONST:
+	if (GET_CODE (XEXP (XV, 0)) == PLUS
+	   && GET_CODE (XEXP (XEXP (XV, 0), 0)) == SYMBOL_REF)
+	  {
+	    mvs_page_lit += 4;
+	    if (SYMBOL_REF_EXTERNAL_P (XEXP (XEXP (XV, 0), 0)))
+	      {
+		fprintf (fh, "=V(");
+		ASM_OUTPUT_LABELREF (fh,
+				  XSTR (XEXP (XEXP (XV, 0), 0), 0));
+		fprintf (fh, ")\n\tA\t%s,=F'" HOST_WIDE_INT_PRINT_DEC "'",
+			 curreg, INTVAL (XEXP (XEXP (XV, 0), 1)));
+	      }
+	    else
+	      {
+		fprintf (fh, "=A(");
+		output_addr_const (fh, XV);
+		fprintf (fh, ")");
+	      }
+	  }
+	else
+	  {
+	    mvs_page_lit += 4;
+	    fprintf (fh, "=bogus_bad_F'");
+	    output_addr_const (fh, XV);
+	    fprintf (fh, "'");
+/* XXX hack alert this gets gen'd in -fPIC code in relation to a tablejump */
+/* but its somehow fundamentally broken, I can't make any sense out of it */
+debug_rtx (XV);
+abort();
+	  }
+	break;
+      default:
+	abort();
+    }
+}
+
+void
+i370_print_operand_address (FILE *fh, rtx ADDR)
+{
+  rtx breg, xreg, offset, plus;
+
+  switch (GET_CODE (ADDR))
+    {
+      case REG:
+	fprintf (fh, "0(%s)", reg_names[REGNO (ADDR)]);
+	break;
+      case PLUS:
+	breg = 0;
+	xreg = 0;
+	offset = 0;
+	if (GET_CODE (XEXP (ADDR, 0)) == PLUS)
+	  {
+	    if (GET_CODE (XEXP (ADDR, 1)) == REG)
+	      breg = XEXP (ADDR, 1);
+	    else
+	      offset = XEXP (ADDR, 1);
+	    plus = XEXP (ADDR, 0);
+	  }
+	else
+	  {
+	    if (GET_CODE (XEXP (ADDR, 0)) == REG)
+	      breg = XEXP (ADDR, 0);
+	    else
+	      offset = XEXP (ADDR, 0);
+	    plus = XEXP (ADDR, 1);
+	  }
+	if (GET_CODE (plus) == PLUS)
+	  {
+	    if (GET_CODE (XEXP (plus, 0)) == REG)
+	      {
+		if (breg)
+		  xreg = XEXP (plus, 0);
+		else
+		  breg = XEXP (plus, 0);
+	      }
+	    else
+	      {
+		offset = XEXP (plus, 0);
+	      }
+	    if (GET_CODE (XEXP (plus, 1)) == REG)
+	      {
+		if (breg)
+		  xreg = XEXP (plus, 1);
+		else
+		  breg = XEXP (plus, 1);
+	      }
+	    else
+	      {
+		offset = XEXP (plus, 1);
+	      }
+	  }
+	else if (GET_CODE (plus) == REG)
+	  {
+	    if (breg)
+	      xreg = plus;
+	    else
+	      breg = plus;
+	  }
+	else
+	  {
+	    offset = plus;
+	  }
+	if (offset)
+	  {
+	    if (GET_CODE (offset) == LABEL_REF)
+	      fprintf (fh, "L%d",
+			CODE_LABEL_NUMBER (XEXP (offset, 0)));
+	    else
+	      output_addr_const (fh, offset);
+	  }
+	else
+	  fprintf (fh, "0");
+	if (xreg)
+	    fprintf (fh, "(%s,%s)",
+		    reg_names[REGNO (xreg)], reg_names[REGNO (breg)]);
+	else
+	  fprintf (fh, "(%s)", reg_names[REGNO (breg)]);
+	break;
+      default:
+	mvs_page_lit += 4;
+	if (SYMBOL_REF_EXTERNAL_P (ADDR)) fprintf (fh, "=V(");
+	else                        fprintf (fh, "=A(");
+	output_addr_const (fh, ADDR);
+	fprintf (fh, ")");
+	break;
+    }
+}
+
+#endif /* TARGET_ELF_ABI */
+
+/* ===================================================== */
 
 #ifdef TARGET_HLASM
 
