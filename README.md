@@ -6,12 +6,15 @@ suitable for use with the i370-binutils assembler.
 
 Both this target, the i370, and the s390 target create binaries that can
 run on the IBM System/390 mainframes. However, the generated assembly
-language is quite different, as well as the ABI's. The i370 port is less
-sophisticated and less modern than the s390 port; however, it should be
-a lot easier to understand for conventional (old-school?) mainframe
-programmers.
+language is quite different, as well as the ABI's. The i370 port
+generates assembly for both HLASM and GNU binutils (ELF). The HLASM
+targets include CMS, VMS, Dignus, OpenEdition, MVS/Language
+Environment (MVS/LE) and VSE.
 
-The original i370 port can be found on
+The i370-elf backend is needed to compile the i370 port of the
+Linux kernel.  This kernel can be found on github, at
+[linas/i370-linux-2.2.1](https://github.com/linas/i370-linux-2.2.1).
+General background is provided on
 [Linas' i370 website](https://linas.org/linux/i370/i370.html).
 
 ### HOWTO
@@ -23,9 +26,9 @@ The code here starts with gcc release 3.4.6 and applies a large number
 of fixes that (a) were lost during the infighting between egcs and gcc,
 (b) fix bugs that were discovered after gcc-4.0.0 came out, and thus,
 the fixes were never upstreamed.  This includes fixes from Paul Edwards,
-among others.
+among others. (c) Extensions for a number of different HLASM OS targets.
 
-To get the latest, do this:
+To build the version for binutils/ELF, do this:
 ```
 git checkout i370-gcc-3.4.6
 mkdir build; cd build
@@ -37,6 +40,18 @@ sudo make install
 The `sudo make install` will install `gcc` into
 `/usr/local/i370-ibm-linux/bin` and `libgcc_s.so.1` into
 `/usr/local/i370-ibm-linux/lib`.
+
+Other targets include:
+```
+--target=i370-ibm-cms
+--target=i370-ibm-mvsle
+--target=i370-ibm-mvsdignus
+--target=i370-ibm-mvspdp
+--target=i370-ibm-mvs38_dignus
+--target=i370-ibm-opened
+```
+The configuration for these is defined in the `gcc/config.gcc` file.
+
 
 Original GNU README
 ===================
