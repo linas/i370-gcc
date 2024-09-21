@@ -660,12 +660,13 @@ i370_label_scan (void)
                 {
                    if (REG_LABEL == REG_NOTE_KIND(note))
                      {
-                        rtx label = XEXP (note,0);
-                        if (!label || CODE_LABEL != GET_CODE (label)) abort ();
-
                         /* Record, only if the label is not deleted */
-                        if (NOTE_LINE_NUMBER (label) != NOTE_INSN_DELETED_LABEL)
-                          I370_RECORD_LABEL_REF(label,here);
+                        rtx label = XEXP (note,0);
+                        if (label && CODE_LABEL == GET_CODE (label)
+                            && NOTE_LINE_NUMBER (label) != NOTE_INSN_DELETED_LABEL)
+                          {
+                            I370_RECORD_LABEL_REF(label,here);
+                          }
                      }
                 }
            }
