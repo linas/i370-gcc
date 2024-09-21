@@ -234,6 +234,7 @@ static const char *const mvs_function_table[MVS_FUNCTION_TABLE_LENGTH] =
 #define TARGET_ASM_GLOBALIZE_LABEL i370_globalize_label
 #endif
 
+/* Shard by all */
 #undef TARGET_ASM_FUNCTION_PROLOGUE
 #define TARGET_ASM_FUNCTION_PROLOGUE i370_output_function_prologue
 #undef TARGET_ASM_FUNCTION_EPILOGUE

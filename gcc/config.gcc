@@ -894,13 +894,49 @@ hppa1.0-*-hpux11*)
 	esac
 	use_collect2=yes
 	;;
-i370-*-opened*)			 # IBM 360/370/390 Architecture
-	xm_defines='FATAL_EXIT_CODE=12'
-	tm_file="i370/oe.h i370/i370.h"
-	tmake_file="i370/t-i370"
+i370-*-cms)
+	xm_defines='POSIX'
+	xm_file="i370/xm-mvs.h"
+	tm_file="i370/cms.h i370/i370.h"
+	tmake_file="i370/t-mvs i370/t-i370"
 	c_target_objs="i370-c.o"
 	cxx_target_objs="i370-c.o"
-	# Don't bother fixing up header files; they're weird.
+	;;
+i370-*-linux*)
+	tm_file="dbxelf.h elfos.h svr4.h linux.h i370/linux.h i370/i370.h"
+	tmake_file="i370/t-i370-elf t-slibgcc-elf-ver t-slibgcc-nolc-override t-linux"
+	;;
+i370-*-mvsdignus)
+	xm_defines='POSIX'
+	xm_file="i370/xm-mvs.h"
+	tm_file="i370/mvsdignus.h i370/i370.h"
+	tmake_file="i370/t-mvs i370/t-i370"
+	c_target_objs="i370-c.o"
+	cxx_target_objs="i370-c.o"
+	;;
+i370-*-mvsle)
+	xm_defines='POSIX'
+	xm_file="i370/xm-mvs.h"
+	tm_file="i370/mvsle.h i370/i370.h"
+	tmake_file="i370/t-mvs i370/t-i370"
+	c_target_objs="i370-c.o"
+	cxx_target_objs="i370-c.o"
+	;;
+i370-*-mvspdp)
+	xm_defines='POSIX'
+	xm_file="i370/xm-mvs.h"
+	tm_file="i370/mvspdp.h i370/i370.h"
+	tmake_file="i370/t-mvs i370/t-i370"
+	c_target_objs="i370-c.o"
+	cxx_target_objs="i370-c.o"
+	;;
+i370-*-mvs38_dignus)
+	xm_defines='POSIX'
+	xm_file="i370/xm-mvs.h"
+	tm_file="i370/mvs38_dignus.h i370/i370.h"
+	tmake_file="i370/t-mvs i370/t-i370"
+	c_target_objs="i370-c.o"
+	cxx_target_objs="i370-c.o"
 	;;
 i370-*-mvs*)
 	xm_defines='FATAL_EXIT_CODE=12'
@@ -910,9 +946,13 @@ i370-*-mvs*)
 	cxx_target_objs="i370-c.o"
 	use_fixproto=yes
 	;;
-i370-*-linux*)
-	tm_file="dbxelf.h elfos.h svr4.h linux.h i370/linux.h i370/i370.h"
-	tmake_file="i370/t-i370-elf t-slibgcc-elf-ver t-slibgcc-nolc-override t-linux"
+i370-*-opened*)			 # IBM 360/370/390 Architecture
+	xm_defines='FATAL_EXIT_CODE=12'
+	tm_file="i370/oe.h i370/i370.h"
+	tmake_file="i370/t-i370"
+	c_target_objs="i370-c.o"
+	cxx_target_objs="i370-c.o"
+	# Don't bother fixing up header files; they're weird.
 	;;
 i[34567]86-*-darwin*)
 	tm_file="${tm_file} i386/darwin.h"

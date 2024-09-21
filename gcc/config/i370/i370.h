@@ -1415,6 +1415,7 @@ enum reg_class
   fprintf (FILE,"@DATA\tCSECT\n");                                      \
   fprintf (FILE, "%s%d\tEQU\t*\n", PREFIX, NUM)
 #else /* !TARGET_ALIASES */
+
 #ifdef TARGET_PDPMAC
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)			\
   fprintf (FILE, "\tLTORG\n");                                          \
@@ -1422,6 +1423,7 @@ enum reg_class
   mvs_case_code = 0;							\
   fprintf (FILE, "@@%s%d\tEQU\t*\n", PREFIX, NUM)
 #else
+
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)			\
   fprintf (FILE, "\tDS\t0F\n");                                         \
   fprintf (FILE,"$%s\tCSECT\n", mvs_module);                            \
@@ -1435,12 +1437,14 @@ enum reg_class
 #define ASM_OUTPUT_CASE_END(FILE, NUM, TABLE)                           \
   fputs ("@CODE\tCSECT\n", FILE);
 #else /* !TARGET_ALIASES */
+
 #ifdef TARGET_PDPMAC
 #define ASM_OUTPUT_CASE_END(FILE, NUM, TABLE)                           \
   mvs_page_code += mvs_case_code;					\
   mvs_check_page (FILE, 0, 0);						\
   mvs_case_code = 0;
 #else
+
 #define ASM_OUTPUT_CASE_END(FILE, NUM, TABLE)                           \
   fprintf (FILE, "@%s\tCSECT\n", mvs_module);
 #endif
