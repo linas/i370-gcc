@@ -346,15 +346,25 @@ extern void i370_override_options (void);
 /* ================= */
 #ifdef TARGET_ELF_ABI
 
-/* The Linux/ELF ABI uses the same register layout as the
-   the MVS/OE version, with the following exceptions:
+/* The Linux/ELF ABI uses a register layout similar to
+   the MVS/OE version, yet with various changes:
    -- r3 is used as the base register
    -- r4 is not used; its role is taken by 0(r13)
-   -- r13 is used as a combined argument & frame pointer
-   -- r11 is used to point to the top of the stack.
+      This is the page-origin; every now and then,
+      r3 is reloaded from it.
    -- r12 is used as a base pointer into the data section
       but only if i370_enable_pic is true; otherwise we can
-      free up this register.
+      free up this register. It implements a kind-of-like
+      PLT, but per-function, instead of being grouped into
+      one location..
+
+   -- r13 is used as a combined argument & frame pointer
+   -- r11 is used to point to the top of the stack. Dynamic
+      allocations such as alloca() happen above r11.
+
+   The stack grow upwards, so r11 is always larger than r13.
+   Some prototyping was done for a downwards-growing stack,
+   but it is an unfinished folly.
 
    Note that the ELF calling convention is radically different
    than the MVS/OE convention.  In particular, r11 always points
@@ -363,7 +373,7 @@ extern void i370_override_options (void);
    pointer for all occasions, whereas r11 can be used for alloca
    and other stack-dynamic allocations.
 
-   XXX Future enhancment possible: When a function doesn't have
+   XXX Future enhancement possible: When a function doesn't have
    any args, and doesn't use alloca(), then r11 is not really needed.
  */
 
