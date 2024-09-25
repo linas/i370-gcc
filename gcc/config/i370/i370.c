@@ -1917,7 +1917,7 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
             } else {
 	       fprintf (fh, "=XL8'FFFFFFFF");
             }
-	    fprintf (fh, "%08X'", INTVAL (XV));
+	    fprintf (fh, "%08lX'", INTVAL (XV));
 	  }
 	else
 	  {
@@ -1931,17 +1931,17 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	    if (CODE == 'M')
 	      {
 		mvs_page_lit += 4;
-		fprintf (fh, "=XL4'%08X'", CONST_DOUBLE_LOW (XV));
+		fprintf (fh, "=XL4'%08lX'", CONST_DOUBLE_LOW (XV));
 	      }
 	    else if (CODE == 'L')
 	      {
 		mvs_page_lit += 4;
-		fprintf (fh, "=XL4'%08X'", CONST_DOUBLE_HIGH (XV));
+		fprintf (fh, "=XL4'%08lX'", CONST_DOUBLE_HIGH (XV));
 	      }
 	    else
 	      {
 		mvs_page_lit += 8;
-		fprintf (fh, "=yyyyXL8'%08X%08X'",
+		fprintf (fh, "=yyyyXL8'%08lX%08lX'",
 			CONST_DOUBLE_HIGH (XV), CONST_DOUBLE_LOW (XV));
 	      }
 	  }
@@ -1965,7 +1965,7 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	    else /* VOIDmode !?!? strange but true ...  */
 	      {
 		mvs_page_lit += 8;
-		fprintf (fh, "=XL8'%08X%08X'",
+		fprintf (fh, "=XL8'%08lX%08lX'",
 			CONST_DOUBLE_HIGH (XV), CONST_DOUBLE_LOW (XV));
 	      }
 	  }
