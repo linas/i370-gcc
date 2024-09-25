@@ -426,7 +426,7 @@ mvs_make_float (REAL_VALUE_TYPE r)
             (pc)
             (label_ref (match_operand 0 "" ""))))
 
-  So either the forst or the second target is (pc).
+  So either the first or the second target is (pc).
   We want the other one.
   */
 
@@ -603,12 +603,12 @@ i370_label_scan (void)
    this is incorrect.  It is possible that a table-jump
    driven off of a relative address could take us off-page,
    to a place where we need to reload the base reg.  So really,
-   we need to examing both labels, and compare thier values
+   we need to examining both labels, and compare their values
    to the current basereg value.
 
    More generally, this brings up a troubling issue overall:
    what happens if a tablejump is split across two pages? I do
-   not beleive that this case is handled correctly at all, and
+   not believe that this case is handled correctly at all, and
    can only lead to horrible results if this were to occur.
 
    However, the current situation is not any worse than it was
@@ -850,7 +850,7 @@ mvs_add_label (int id)
      is very conservatively handled; we'll tend to have
      a good bit more reloads than actually needed.  Someday,
      we should tighten the estimates (which are driven by
-     the (set_att "length") insn attibute.
+     the (set_att "length") insn attribute.
 
      Currently, we estimate that number of page literals
      same as number of insns, which is a vast overestimate,
@@ -2928,7 +2928,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   "# Function prologue\n"
                   "\t.using\t.,r15\n", mvs_function_name);
 
-      /* Branch to exectuable part of prologue. */
+      /* Branch to executable part of prologue. */
       fprintf (f, "\tB\t.LFENT%06d\n", function_label_index);
 
       /* write the length of the stackframe */

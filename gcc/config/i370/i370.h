@@ -247,7 +247,7 @@ extern void i370_override_options (void);
    the "clobber" directive acts as a barrier to optimization, and the
    optimizer appears to be unable to perform optimizations around branches.
    Thus, a much better strategy appears to give R14 a pervasive use;
-   this eliminates it from the register pool witout hurting optimization.
+   this eliminates it from the register pool without hurting optimization.
 
    There are other registers which have special meanings, but its OK
    for them to get clobbered, since other allocator config below will
@@ -1081,7 +1081,7 @@ enum reg_class
        this occurs fairly rarely ...
 
    (3) There is a bug somewhere that causes either r4 to be spilled,
-       or causes r0 to be used as a base register.  Changeing the macro
+       or causes r0 to be used as a base register.  Changing the macro
        below will make the bug move around, but will not make it go away
        ... Note that this is a rare bug ...
 
