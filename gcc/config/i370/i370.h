@@ -219,10 +219,6 @@ extern void i370_override_options (void);
 
 #if defined(TARGET_HLASM) || defined(TARGET_PDOSGB)
 
-/* Define base and page registers.  */
-#define BASE_REGISTER 3
-#define PAGE_REGISTER 4
-
 /* 1 for registers that have pervasive standard uses and are not available
    for the register allocator.  These are registers that must have fixed,
    valid values stored in them for the entire length of the subroutine call,
@@ -268,6 +264,25 @@ extern void i370_override_options (void);
    also try to use it as the arg pointer ... thus it must be marked fixed.
    I think this is a bug, but I can't track it down...
  */
+
+/* Define base and page registers.  */
+#define BASE_REGISTER 3
+#define PAGE_REGISTER 4
+
+/* Register to use for pushing function arguments.  */
+#define STACK_POINTER_REGNUM 13
+
+/* Base register for access to local variables of the function.  */
+#define FRAME_POINTER_REGNUM 13
+
+/* Value should be nonzero if functions must have frame pointers.
+   Zero means the frame pointer need not be set up (and parms may be
+   accessed via the stack pointer) in functions that seem suitable.
+   This is computed in `reload', in reload1.c.  */
+#define FRAME_POINTER_REQUIRED 1
+
+/* Base register for access to arguments of the function.  */
+#define ARG_POINTER_REGNUM 11
 
 #if defined(TARGET_DIGNUS) || defined(TARGET_PDPMAC) \
     || defined(TARGET_PDOSGB)
@@ -331,11 +346,6 @@ extern void i370_override_options (void);
 /* ================= */
 #ifdef TARGET_ELF_ABI
 
-/* Define base and page registers.  */
-#define BASE_REGISTER 3
-#define PAGE_REGISTER 4
-#define PIC_BASE_REGISTER 12
-
 /* The Linux/ELF ABI uses the same register layout as the
    the MVS/OE version, with the following exceptions:
    -- r3 is used as the base register
@@ -356,6 +366,32 @@ extern void i370_override_options (void);
    XXX Future enhancment possible: When a function doesn't have
    any args, and doesn't use alloca(), then r11 is not really needed.
  */
+
+/* Define base and page registers.  */
+#define BASE_REGISTER 3
+#define PIC_BASE_REGISTER 12
+
+/* Register to use for pushing function arguments.  */
+#define STACK_POINTER_REGNUM 11
+
+/* Base register for access to local variables of the function.
+   A separate stack and frame pointer is required for any function
+   that calls alloca() or does other pushing onto the stack. */
+#define FRAME_POINTER_REGNUM 13
+
+/* Value should be nonzero if functions must have frame pointers.
+   Zero means the frame pointer need not be set up (and parms may be
+   accessed via the stack pointer) in functions that seem suitable.
+   This is computed in `reload', in reload1.c.  */
+#define FRAME_POINTER_REQUIRED 1
+
+/* Function epilogue uses the frame pointer to restore the context */
+#define EXIT_IGNORE_STACK 1
+
+/* Base register for access to arguments of the function.
+   We will use the frame pointer as the arg pointer. */
+#define ARG_POINTER_REGNUM 13
+
 
 #define FIXED_REGISTERS 						\
 { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0 }
@@ -407,61 +443,6 @@ extern void i370_override_options (void);
 
 /* #define PC_REGNUM */
 
-/* ------------------------------------------------------------------- */
-/* ================= */
-#if defined(TARGET_HLASM) || defined(TARGET_PDOSGB)
-
-/* Register to use for pushing function arguments.  */
-
-#define STACK_POINTER_REGNUM 13
-
-/* Base register for access to local variables of the function.  */
-
-#define FRAME_POINTER_REGNUM 13
-
-/* Value should be nonzero if functions must have frame pointers.
-   Zero means the frame pointer need not be set up (and parms may be
-   accessed via the stack pointer) in functions that seem suitable.
-   This is computed in `reload', in reload1.c.  */
-
-#define FRAME_POINTER_REQUIRED 1
-
-/* Base register for access to arguments of the function.  */
-
-#define ARG_POINTER_REGNUM 11
-
-#endif /* TARGET_HLASM */
-
-/* ================= */
-#ifdef TARGET_ELF_ABI
-
-/* Register to use for pushing function arguments.  */
-
-#define STACK_POINTER_REGNUM 11
-
-/* Base register for access to local variables of the function.
-   A separate stack and frame pointer is required for any function
-   that calls alloca() or does other pushing onto the stack. */
-
-#define FRAME_POINTER_REGNUM 13
-
-/* Value should be nonzero if functions must have frame pointers.
-   Zero means the frame pointer need not be set up (and parms may be
-   accessed via the stack pointer) in functions that seem suitable.
-   This is computed in `reload', in reload1.c.  */
-
-#define FRAME_POINTER_REQUIRED 1
-
-/* Function epilogue uses the frame pointer to restore the context */
-#define EXIT_IGNORE_STACK 1
-
-/* Base register for access to arguments of the function.
-   We will use the frame pointer as the arg pointer. */
-
-#define ARG_POINTER_REGNUM 13
-
-#endif /* TARGET_ELF_ABI */
-/* ================= */
 /* ------------------------------------------------------------------- */
 
 /* R10 is register in which static-chain is passed to a function.
