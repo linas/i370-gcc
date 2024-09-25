@@ -1049,13 +1049,16 @@ mvs_check_page (FILE *file, int code, int lit)
 
           /* BASR puts the contents of the PSW into r3
              that is, r3 will be loaded with the address of "."
+             The page origin is at 0(r13)
+             PIC_BASE_REGISTER is r12
              We also put location of new literal pool into r12 */
           fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
           fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
           fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+          fprintf (assembler_source, "\tL\tr%d,0(,r%d)\n",
+                   PIC_BASE_REGISTER, FRAME_POINTER_REGNUM);
           fprintf (assembler_source, "\tL\tr%d,%d(,r%d)\n", PIC_BASE_REGISTER,
-               (mvs_page_num - function_base_page) * 8 + 4, PAGE_REGISTER);
-
+               (mvs_page_num - function_base_page) * 8 + 4, PIC_BASE_REGISTER);
         }
       else
         {

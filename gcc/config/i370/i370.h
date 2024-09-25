@@ -217,13 +217,12 @@ extern void i370_override_options (void);
 
 #define FIRST_PSEUDO_REGISTER 20
 
-/* Define base and page registers.  */
+#if defined(TARGET_HLASM) || defined(TARGET_PDOSGB)
 
+/* Define base and page registers.  */
 #define BASE_REGISTER 3
 #define PAGE_REGISTER 4
-#define PIC_BASE_REGISTER 12
 
-#if defined(TARGET_HLASM) || defined(TARGET_PDOSGB)
 /* 1 for registers that have pervasive standard uses and are not available
    for the register allocator.  These are registers that must have fixed,
    valid values stored in them for the entire length of the subroutine call,
@@ -331,8 +330,15 @@ extern void i370_override_options (void);
 
 /* ================= */
 #ifdef TARGET_ELF_ABI
+
+/* Define base and page registers.  */
+#define BASE_REGISTER 3
+#define PAGE_REGISTER 4
+#define PIC_BASE_REGISTER 12
+
 /* The Linux/ELF ABI uses the same register layout as the
    the MVS/OE version, with the following exceptions:
+   -- r3 is used as the base register
    -- r4 is not used; its role is taken by 0(r13)
    -- r13 is used as a combined argument & frame pointer
    -- r11 is used to point to the top of the stack.
