@@ -1049,7 +1049,10 @@ mvs_check_page (FILE *file, int code, int lit)
 
           /* BASR puts the contents of the PSW into r3
              that is, r3 will be loaded with the address of "."
-             The page origin is at 0(r13)
+             The page origin is at 0(r13) XXX FIXME wait, the
+             prolog code actually sticks it into r4, so which is it?
+             The docs say we don't use r4, and its not marked call-used.
+             So I think pic is broken, at the moment, till we figure this out.
              PIC_BASE_REGISTER is r12
              We also put location of new literal pool into r12 */
           fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
@@ -2920,6 +2923,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       fprintf (f, "\tL\tr12,16(,r15)\n");
 
       /* r4 will be the pointer to the code page pool for this function */
+      /* XXX Whut? I thought we were using 0(r13) and not using r4!?? */
       fprintf (f, "\tL\tr4,24(,r15)\n");
     }
   else
@@ -2943,6 +2947,9 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       fprintf (f, "\t.balign 2\n.LFENT%06d:\n", function_label_index);
 
       /* store multiple registers 13,14,...12 at 8 bytes from sp */
+      /* XXX FIXME: we don't have to do all of these; some are volatile. */
+      /* Certainly, the epilog doesn't bother to restore some of these. */
+      /* I guess for now, this is useful for debugging. */
       fprintf (f, "\tSTM\tr13,r12,8(r11)\n");
 
       /* r13 == callee frame ptr == callee arg ptr == caller stack ptr */
