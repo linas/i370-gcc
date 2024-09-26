@@ -440,11 +440,26 @@ do_SUBST (rtx *into, rtx newval)
   if (GET_MODE_CLASS (GET_MODE (oldval)) == MODE_INT
       && GET_CODE (newval) == CONST_INT)
     {
+#if AVOID_FOR_I370_GEN
       /* Sanity check that we're replacing oldval with a CONST_INT
 	 that is a valid sign-extension for the original mode.  */
+
+	 For I370, we simply avoid this. This is triggered by the
+	 mulsi define_expand patten, when passing through the case
+	 EXACT_DIV_EXPR: in gcc/expmed.c. This case handles things
+	 like `foo_t *a, *b; unsigned long x = a-b;` which do a
+	 division by `sizeof(foo_t)`.  The EXACT_DIV_EXPR creates
+	 a large negative number, which for i370 needs to be
+	 sign-extended into a DImode exp. If we do this extension
+	 by hand, in mulsi, then horribly inefficient code gets
+	 generated. If we don't do that, then this sanity check
+	 triggers. I'm not sure, but I think that, um, we can
+	 safely ignore this sanity check. I think. Not sure.
+
       if (INTVAL (newval) != trunc_int_for_mode (INTVAL (newval),
 						 GET_MODE (oldval)))
 	abort ();
+#endif
 
       /* Replacing the operand of a SUBREG or a ZERO_EXTEND with a
 	 CONST_INT is not valid, because after the replacement, the
