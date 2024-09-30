@@ -28,7 +28,15 @@ of fixes that (a) were lost during the infighting between egcs and gcc,
 the fixes were never upstreamed.  This includes fixes from Paul Edwards,
 among others. (c) Extensions for a number of different HLASM OS targets.
 
-To build the version for binutils/ELF, do this:
+To get the latest, either clone everything:
+```
+git clone https://github.com/linas/i370-gcc
+```
+or clone only one branch (this will save some time and bandwidth):
+```
+git clone -b i370-gcc-3.4.6 --single-branch https://github.com/linas/i370-gcc
+```
+Then build the version for binutils/ELF:
 ```
 git checkout i370-gcc-3.4.6
 mkdir build; cd build
@@ -37,9 +45,14 @@ make -j12
 sudo make install
 ```
 
-The `sudo make install` will install `gcc` into
-`/usr/local/i370-ibm-linux/bin` and `libgcc_s.so.1` into
-`/usr/local/i370-ibm-linux/lib`.
+The `sudo make install` will install `gcc` into two places, with two
+different names. First, using the plain name `gcc`, in
+`/usr/local/i370-ibm-elf/bin/gcc`. Since this conflicts with the host
+gcc in a cross-compile environment, it is also installed to
+`/usr/local/bin/i370-ibm-elf-gcc`.
+
+Objects and libraries such as `crtbegin.o`, `libgcc_s.so.1` etc.
+are installed into `/usr/local/lib/gcc/i370-ibm-elf/3.4.6`.
 
 Other targets include:
 ```
