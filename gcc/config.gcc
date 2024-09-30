@@ -902,7 +902,7 @@ i370-*-cms)
 	c_target_objs="i370-c.o"
 	cxx_target_objs="i370-c.o"
 	;;
-i370-*-linux*)
+i370-*-linux* | i370-*-elf*)
 	tm_file="dbxelf.h elfos.h svr4.h linux.h i370/linux.h i370/i370.h"
 	tmake_file="i370/t-i370-elf t-slibgcc-elf-ver t-slibgcc-nolc-override t-linux"
 	;;
