@@ -1,4 +1,9 @@
-EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crti.o crtn.o
+
+# What do we need this for?
+# EXTRA_MULTILIB_PARTS=crti.o crtn.o
+
+# Auto-generated from gcc/crtuff.c
+EXTRA_MULTILIB_PARTS=crtbegin.o crtend.o crtbeginS.o crtendS.o crtbeginT.o
 
 # Add flags here as required.
 CRTSTUFF_T_CFLAGS =

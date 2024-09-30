@@ -35,6 +35,10 @@ Boston, MA 02111-1307, USA.  */
 
 #define LIBGCC_SPEC "libgcc.a%s"
 
+/* ======================================================== */
+/* Nothing below is used. Its a reminder of what could be done,
+ * if we wanted to do something non-standard.
+ */
 #ifdef SOME_FUTURE_DAY
  
 #define CPP_SPEC "%{posix: -D_POSIX_SOURCE} %(cpp_sysv) %(cpp_endian_big) \
