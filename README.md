@@ -29,7 +29,7 @@ To get the latest, do this:
 ```
 git checkout i370-gcc-3.4.6
 mkdir build; cd build
-../configure --target=i370-ibm-linux --enable-languages="c" --disable-threads
+../configure --target=i370-ibm-elf --enable-languages="c" --disable-threads
 make -j12
 sudo make install
 ```
