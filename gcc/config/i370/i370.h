@@ -75,18 +75,6 @@ extern int i370_enable_pic;
 
 #define TARGET_DEFAULT 1
 
-/* Macro to define tables used to set the flags.  This is a list in braces
-   of pairs in braces, each pair being { "NAME", VALUE }
-   where VALUE is the bits to set or minus the bits to clear.
-   An empty string NAME is used to identify the default VALUE.  */
-
-#define TARGET_SWITCHES							\
-{ { "char-instructions", 1, N_("Generate char instructions")},		\
-  { "no-char-instructions", -1, N_("Do not generate char instructions")}, \
-  { "pickax", 2, "Experimental i370 PIC"},				\
-  { "no-pickax", -2, "Disable experimental i370 PIC"},			\
-  { "", TARGET_DEFAULT, 0} }
-
 /* The desired CSECT name */
 extern char *mvs_csect_name;
 
