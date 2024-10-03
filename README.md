@@ -11,7 +11,7 @@ generates assembly for both HLASM and GNU binutils (ELF). The HLASM
 targets include CMS, VMS, Dignus, OpenEdition, MVS/Language
 Environment (MVS/LE) and VSE.
 
-The i370-elf backend is needed to compile the i370 port of the
+The i370-ibm-linux backend is needed to compile the i370 port of the
 Linux kernel.  This kernel can be found on github, at
 [linas/i370-linux-2.2.1](https://github.com/linas/i370-linux-2.2.1).
 General background is provided on
@@ -40,19 +40,19 @@ Then build the version for binutils/ELF:
 ```
 git checkout i370-gcc-3.4.6
 mkdir build; cd build
-../configure --target=i370-ibm-elf --enable-languages="c" --disable-threads
+../configure --target=i370-ibm-linux --enable-languages="c" --disable-threads
 make -j12
 sudo make install
 ```
 
 The `sudo make install` will install `gcc` into two places, with two
 different names. First, using the plain name `gcc`, in
-`/usr/local/i370-ibm-elf/bin/gcc`. Since this conflicts with the host
+`/usr/local/i370-ibm-linux/bin/gcc`. Since this conflicts with the host
 gcc in a cross-compile environment, it is also installed to
-`/usr/local/bin/i370-ibm-elf-gcc`.
+`/usr/local/bin/i370-ibm-linux-gcc`.
 
 Objects and libraries such as `crtbegin.o`, `libgcc_s.so.1` etc.
-are installed into `/usr/local/lib/gcc/i370-ibm-elf/3.4.6`.
+are installed into `/usr/local/lib/gcc/i370-ibm-linux/3.4.6`.
 
 Other targets include:
 ```
