@@ -21,8 +21,6 @@ along with GCC; see the file COPYING.  If not, write to
 the Free Software Foundation, 59 Temple Place - Suite 330,
 Boston, MA 02111-1307, USA.  */
 
-#define TARGET_VERSION printf (" (370/OpenEdition)");
-
 /* Specify that we're generating code for the Language Environment */
 
 #define LE370 1
