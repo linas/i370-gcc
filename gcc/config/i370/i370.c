@@ -3040,13 +3040,13 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
 static void
 i370_file_start ()
 {
-  // fputs ("\tRMODE\tANY\n\tCSECT\n", asm_out_file);
+  /* fputs ("\tRMODE\tANY\n\tCSECT\n", asm_out_file); */
 }
 
 static void
 i370_file_end (void)
 {
-  // fputs ("\tEND\n", asm_out_file);
+  /* fputs ("\tEND\n", asm_out_file); */
 }
 #endif /* TARGET_ELF_ABI */
 

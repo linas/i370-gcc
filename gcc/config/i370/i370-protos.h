@@ -24,6 +24,8 @@ Boston, MA 02111-1307, USA.  */
 #ifndef GCC_I370_PROTOS_H
 #define GCC_I370_PROTOS_H
 
+#include "real.h"
+
 extern void i370_override_options (void);
 
 #ifdef RTX_CODE
