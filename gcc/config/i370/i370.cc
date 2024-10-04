@@ -266,7 +266,7 @@ void
 i370_override_options (void)
 {
 #ifdef TARGET_HLASM
-  if (mvs_csect_name)
+  if (OPTION_SET_P(mvs_csect_name))
   {
       static char buf[9];
       char *p;
@@ -287,7 +287,7 @@ i370_override_options (void)
 
   /* Override CALL_USED_REGISTERS & FIXED_REGISTERS
      PIC requires r12, otherwise its free */
-  if (i370_enable_pic)
+  if (OPTION_SET_P(i370_enable_pic))
     {
       fix_register ("r12", 1, 1);
     }

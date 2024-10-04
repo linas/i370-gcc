@@ -90,8 +90,7 @@ extern char *mvs_csect_name;
   } while(0)
 #endif /* TARGET_HLASM */
 
-extern void i370_override_options (void);
-#define OVERRIDE_OPTIONS i370_override_options()
+#define SUBTARGET_OVERRIDE_OPTIONS i370_override_options()
 
 /* To use IBM supplied macro function prologue and epilogue, define the
    following to 1.  Should only be needed if IBM changes the definition
