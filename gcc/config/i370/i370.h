@@ -179,11 +179,6 @@ extern char *mvs_csect_name;
 #define REG_ALLOC_ORDER							\
    { 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 10, 15, 14, 12, 16, 17, 18, 19, 11, 13 }
 
-
-#define PREDICATE_CODES \
-  {"r_or_s_operand", { REG, SUBREG, MEM }}, \
-  {"s_operand", { MEM }},
-
 /* Standard register usage.  */
 
 /* Number of actual hardware registers.  The hardware registers are

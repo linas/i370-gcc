@@ -28,8 +28,6 @@ extern void i370_override_options (void);
 
 #ifdef RTX_CODE
 extern int i370_short_branch (rtx);
-extern int s_operand (rtx, enum machine_mode);
-extern int r_or_s_operand (rtx, enum machine_mode);
 extern int unsigned_jump_follows_p (rtx);
 extern void i370_print_operand (FILE *, rtx, int );
 extern void i370_print_operand_address (FILE *, rtx);
