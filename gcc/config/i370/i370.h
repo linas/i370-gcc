@@ -253,7 +253,7 @@ extern char *mvs_csect_name;
    Zero means the frame pointer need not be set up (and parms may be
    accessed via the stack pointer) in functions that seem suitable.
    This is computed in `reload', in reload1.c.  */
-#define FRAME_POINTER_REQUIRED 1
+#define TARGET_FRAME_POINTER_REQUIRED 1
 
 /* Base register for access to arguments of the function.  */
 #define ARG_POINTER_REGNUM 11
@@ -367,7 +367,7 @@ extern char *mvs_csect_name;
    Zero means the frame pointer need not be set up (and parms may be
    accessed via the stack pointer) in functions that seem suitable.
    This is computed in `reload', in reload1.c.  */
-#define FRAME_POINTER_REQUIRED 1
+#define TARGET_FRAME_POINTER_REQUIRED 1
 
 /* Function epilogue uses the frame pointer to restore the context */
 #define EXIT_IGNORE_STACK 1
@@ -395,7 +395,7 @@ extern char *mvs_csect_name;
    but can be less for certain modes in special long registers.
    Note that DCmode (complex double) needs two regs.  */
 
-#define HARD_REGNO_NREGS(REGNO, MODE) 					\
+#define TARGET_HARD_REGNO_NREGS(REGNO, MODE) 					\
   ((REGNO) > 15 ? 							\
    ((GET_MODE_SIZE (MODE) + 2*UNITS_PER_WORD - 1) / (2*UNITS_PER_WORD)) :	\
    (GET_MODE_SIZE(MODE)+UNITS_PER_WORD-1) / UNITS_PER_WORD)
@@ -405,7 +405,7 @@ extern char *mvs_csect_name;
    even registers can hold DI.  The floating point registers can hold
    either SF, DF, SC or DC.  */
 
-#define HARD_REGNO_MODE_OK(REGNO, MODE)					\
+#define TARGET_HARD_REGNO_MODE_OK(REGNO, MODE)					\
   ((REGNO) < 16 ? (((REGNO) & 1) == 0 || 				\
 		  (((MODE) != DImode) && ((MODE) != DFmode)))		\
 		: ((MODE) == SFmode || (MODE) == DFmode) ||		\
@@ -416,7 +416,7 @@ extern char *mvs_csect_name;
    If HARD_REGNO_MODE_OK could produce different values for MODE1 and MODE2,
    for any hard reg, then this must be 0 for correct output.  */
 
-#define MODES_TIEABLE_P(MODE1, MODE2)					\
+#define TARGET_MODES_TIEABLE_P(MODE1, MODE2)					\
   (((MODE1) == SFmode || (MODE1) == DFmode)				\
    == ((MODE2) == SFmode || (MODE2) == DFmode))
 
