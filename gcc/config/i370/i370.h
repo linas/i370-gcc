@@ -78,12 +78,6 @@ extern int i370_enable_pic;
 /* The desired CSECT name */
 extern char *mvs_csect_name;
 
-#define TARGET_OPTIONS							\
-{ { "csect=", (const char **) &mvs_csect_name,				\
-    N_("Set CSECT name")},						\
-  SUBTARGET_OPTIONS							\
-}
-
 #ifdef TARGET_HLASM
 /* HLASM requires #pragma map.  */
 #define REGISTER_TARGET_PRAGMAS() \
@@ -95,8 +89,6 @@ extern char *mvs_csect_name;
   cpp_register_pragma (PFILE, 0, "linkage", i370_pr_linkage); \
   } while(0)
 #endif /* TARGET_HLASM */
-
-#define SUBTARGET_OPTIONS
 
 extern void i370_override_options (void);
 #define OVERRIDE_OPTIONS i370_override_options()

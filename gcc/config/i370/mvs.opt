@@ -1,0 +1,5 @@
+; Options for the MVS/HLASM variant of the i370 port of the compiler.
+
+csect
+Target Var(mvs_csect_name)
+Set CSECT name

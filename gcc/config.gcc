@@ -1940,6 +1940,7 @@ i370-*-cms)
    tmake_file="i370/t-mvs i370/t-i370"
    c_target_objs="i370-c.o"
    cxx_target_objs="i370-c.o"
+   extra_options="${extra_options} i370/mvs.opt"
    ;;
 i370-*-linux* | i370-*-elf*)
    tm_file="elfos.h linux.h i370/linux.h i370/i370.h"
@@ -1952,6 +1953,7 @@ i370-*-mvsdignus)
    tmake_file="i370/t-mvs i370/t-i370"
    c_target_objs="i370-c.o"
    cxx_target_objs="i370-c.o"
+   extra_options="${extra_options} i370/mvs.opt"
    ;;
 i370-*-mvsle)
    xm_defines='POSIX'
@@ -1960,6 +1962,7 @@ i370-*-mvsle)
    tmake_file="i370/t-mvs i370/t-i370"
    c_target_objs="i370-c.o"
    cxx_target_objs="i370-c.o"
+   extra_options="${extra_options} i370/mvs.opt"
    ;;
 i370-*-mvspdp)
    xm_defines='POSIX'
@@ -1968,6 +1971,7 @@ i370-*-mvspdp)
    tmake_file="i370/t-mvs i370/t-i370"
    c_target_objs="i370-c.o"
    cxx_target_objs="i370-c.o"
+   extra_options="${extra_options} i370/mvs.opt"
    ;;
 i370-*-mvs38_dignus)
    xm_defines='POSIX'
@@ -1976,6 +1980,7 @@ i370-*-mvs38_dignus)
    tmake_file="i370/t-mvs i370/t-i370"
    c_target_objs="i370-c.o"
    cxx_target_objs="i370-c.o"
+   extra_options="${extra_options} i370/mvs.opt"
    ;;
 i370-*-mvs*)
    xm_defines='FATAL_EXIT_CODE=12'
@@ -1984,6 +1989,7 @@ i370-*-mvs*)
    c_target_objs="i370-c.o"
    cxx_target_objs="i370-c.o"
    use_fixproto=yes
+   extra_options="${extra_options} i370/mvs.opt"
    ;;
 i370-*-opened*)          # IBM 360/370/390 Architecture
    xm_defines='FATAL_EXIT_CODE=12'
@@ -1991,7 +1997,8 @@ i370-*-opened*)          # IBM 360/370/390 Architecture
    tmake_file="i370/t-i370"
    c_target_objs="i370-c.o"
    cxx_target_objs="i370-c.o"
-   # Don't bother fixing up header files; they're weird.
+   extra_options="${extra_options} i370/mvs.opt"
+   # use_fixproto=no Don't bother fixing up header files; they're weird.
    ;;
 i[34567]86-*-darwin1[89]* | i[34567]86-*-darwin2*)
 	echo "Error: 32bit target is not supported after Darwin17" 1>&2
