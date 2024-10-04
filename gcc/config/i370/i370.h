@@ -454,9 +454,9 @@ extern char *mvs_csect_name;
  */
 
 #if defined(TARGET_PDPMAC) || defined(TARGET_PDOSGB)
-#define STRUCT_VALUE_REGNUM 0
+#define I370_STRUCT_VALUE_REGNUM 0
 #else
-#define STRUCT_VALUE_REGNUM 1
+#define I370_STRUCT_VALUE_REGNUM 1
 #endif
 
 /* Define the classes of registers for register constraints in the

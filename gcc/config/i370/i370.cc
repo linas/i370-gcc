@@ -145,6 +145,17 @@ static void i370_internal_label (FILE *, const char *, unsigned long);
 static bool i370_rtx_costs (rtx, int, int, int *);
 
 /* ===================================================== */
+
+/* Worker function for TARGET_STRUCT_VALUE_RTX.  */
+
+static rtx
+i370_struct_value_rtx (tree fntype ATTRIBUTE_UNUSED,
+                       int incoming ATTRIBUTE_UNUSED)
+{
+  return gen_rtx_REG (Pmode, I370_STRUCT_VALUE_REGNUM);
+}
+
+/* ===================================================== */
 /* Defines and functions specific to the HLASM assembler. */
 #ifdef TARGET_HLASM
 
@@ -235,6 +246,8 @@ static const char *const mvs_function_table[MVS_FUNCTION_TABLE_LENGTH] =
 #endif
 
 /* Shard by all */
+#undef TARGET_STRUCT_VALUE_RTX
+#define TARGET_STRUCT_VALUE_RTX i370_struct_value_rtx
 #undef TARGET_ASM_FUNCTION_PROLOGUE
 #define TARGET_ASM_FUNCTION_PROLOGUE i370_output_function_prologue
 #undef TARGET_ASM_FUNCTION_EPILOGUE
