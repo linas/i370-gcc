@@ -144,6 +144,16 @@ static int mvs_hash_alias (const char *);
 static void i370_internal_label (FILE *, const char *, unsigned long);
 static bool i370_rtx_costs (rtx, int, int, int *);
 
+/* Perform sign extension of an HI "half-integer" aka 16-bit signed int.
+ * Apparently, we sometimes get 16-bit signed shorts that have not been
+ * correctly sign extended to the host (wide) integer; we have to print
+ * these correctly if they are actually negative. The below forces a
+ * sign extension, first, by exlicitly casting to a signed short, and
+ * then back again to the host wide int. This should work on both 32-bit
+ * and 64-bit hosts.
+ */
+#define sign_extend16(HI) ((long int) ((signed short) HI))
+
 /* ===================================================== */
 /* Defines and functions specific to the HLASM assembler. */
 #ifdef TARGET_HLASM
@@ -1624,17 +1634,17 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	else if (CODE == 'X')
 	  fprintf (fh, "%02X", (int) (INTVAL (XV) & 0xff));
 	else if (CODE == 'h')
-	  fprintf (fh, HOST_WIDE_INT_PRINT_DEC, (INTVAL (XV) << 16) >> 16);
+	  fprintf (fh, HOST_WIDE_INT_PRINT_DEC, sign_extend16(INTVAL (XV)));
 	else if (CODE == 'H')
 	  {
 	    mvs_page_lit += 2;
-	    fprintf (fh, "=H'" HOST_WIDE_INT_PRINT_DEC "'", (INTVAL (XV) << 16) >> 16);
+	    fprintf (fh, "=H'" HOST_WIDE_INT_PRINT_DEC "'", sign_extend16(INTVAL (XV)));
 	  }
 	else if (CODE == 'K')
 	  {
 	    /* auto sign-extension of signed 16-bit to signed 32-bit */
 	    mvs_page_lit += 4;
-	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'", (INTVAL (XV) << 16) >> 16);
+	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'", sign_extend16(INTVAL (XV)));
 	  }
 	else if (CODE == 'W')
 	  {
@@ -1897,19 +1907,17 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	else if (CODE == 'X')
 	  fprintf (fh, "%02X", (int) (INTVAL (XV) & 0xff));
 	else if (CODE == 'h')
-	  fprintf (fh, HOST_WIDE_INT_PRINT_DEC, (INTVAL (XV) << 16) >> 16);
+	  fprintf (fh, HOST_WIDE_INT_PRINT_DEC, sign_extend16(INTVAL (XV)));
 	else if (CODE == 'H')
 	  {
 	    mvs_page_lit += 2;
-	    fprintf (fh, "=H'" HOST_WIDE_INT_PRINT_DEC "'",
-		     (INTVAL (XV) << 16) >> 16);
+	    fprintf (fh, "=H'" HOST_WIDE_INT_PRINT_DEC "'", sign_extend16(INTVAL (XV)));
 	  }
 	else if (CODE == 'K')
 	  {
 	    /* auto sign-extension of signed 16-bit to signed 32-bit */
 	    mvs_page_lit += 4;
-	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'",
-		     (INTVAL (XV) << 16) >> 16);
+	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'", sign_extend16(INTVAL (XV)));
 	  }
 	else if (CODE == 'W')
 	  {
