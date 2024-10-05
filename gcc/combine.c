@@ -444,7 +444,7 @@ do_SUBST (rtx *into, rtx newval)
       /* Sanity check that we're replacing oldval with a CONST_INT
 	 that is a valid sign-extension for the original mode.  */
 
-	 For I370, we simply avoid this. This is triggered by the
+	/* For I370, we simply avoid this. This is triggered by the
 	 mulsi define_expand patten, when passing through the case
 	 EXACT_DIV_EXPR: in gcc/expmed.c. This case handles things
 	 like `foo_t *a, *b; unsigned long x = a-b;` which do a
@@ -454,7 +454,7 @@ do_SUBST (rtx *into, rtx newval)
 	 by hand, in mulsi, then horribly inefficient code gets
 	 generated. If we don't do that, then this sanity check
 	 triggers. I'm not sure, but I think that, um, we can
-	 safely ignore this sanity check. I think. Not sure.
+	 safely ignore this sanity check. I think. Not sure. */
 
       if (INTVAL (newval) != trunc_int_for_mode (INTVAL (newval),
 						 GET_MODE (oldval)))
