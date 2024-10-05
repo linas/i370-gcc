@@ -1632,13 +1632,13 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	  }
 	else if (CODE == 'K')
 	  {
-            /* auto sign-extension of signed 16-bit to signed 32-bit */
+	    /* auto sign-extension of signed 16-bit to signed 32-bit */
 	    mvs_page_lit += 4;
 	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'", (INTVAL (XV) << 16) >> 16);
 	  }
 	else if (CODE == 'W')
 	  {
-            /* hand-built sign-extension of signed 32-bit to 64-bit */
+	    /* hand-built sign-extension of signed 32-bit to 64-bit */
 	    mvs_page_lit += 8;
 	    if (0 <=  INTVAL (XV)) {
 	       fprintf (fh, "=XL8'00000000");
@@ -1906,14 +1906,14 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	  }
 	else if (CODE == 'K')
 	  {
-            /* auto sign-extension of signed 16-bit to signed 32-bit */
+	    /* auto sign-extension of signed 16-bit to signed 32-bit */
 	    mvs_page_lit += 4;
 	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'",
 		     (INTVAL (XV) << 16) >> 16);
 	  }
 	else if (CODE == 'W')
 	  {
-            /* hand-built sign-extension of signed 32-bit to 64-bit */
+	    /* hand-built sign-extension of signed 32-bit to 64-bit */
 	    mvs_page_lit += 8;
 	    if (0 <=  INTVAL (XV)) {
 	       fprintf (fh, "=XL8'00000000");
