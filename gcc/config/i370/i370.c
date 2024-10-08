@@ -390,7 +390,11 @@ char *
 mvs_make_float (REAL_VALUE_TYPE r)
 {
    char *p;
-   static char buf[50];
+   /* The printed float will be this many characters long,
+      including the E+44 at the end. Double precisions has
+      only 23 decimal places of precision. Printing more
+      than this exposes bugs in the assembler.  */
+   static char buf[30];
 
    real_to_decimal (buf, &r, sizeof (buf), 0, 1);
 
