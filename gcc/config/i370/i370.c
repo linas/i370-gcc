@@ -2927,13 +2927,17 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                mvs_page_num, aligned_size, mvs_page_num, mvs_page_num,
                mvs_function_name, mvs_function_name);
 
-      /* store multiple registers 13,14,15,0,...11 at 8 bytes from sp */
-      fprintf (f, "\tSTM\tr13,r11,8(r11)\n");
+      /* Store multiple registers 13,14 at 8 bytes from sp */
+      /* The full STM r13,r11,8(r11) is handy for user debug, */
+      /* but is overkill for what really needs to be saved. */
+      /* fprintf (f, "\tSTM\tr13,r11,8(r11)\n"); */
+      fprintf (f, "\tSTM\tr13,r14,8(r11)\n");
+      fprintf (f, "\tSTM\tr2,r11,28(r11)\n");
 
-      /* load frame, arg pointer from callers top-of-stack */
+      /* Load frame, arg pointer from callers top-of-stack. */
       fprintf (f, "\tLR\tr13,r11\n");
 
-      /* bump stack pointer by 20(r15) == stackframe size */
+      /* Bump stack pointer by 20(r15) == stackframe size. */
       fprintf (f, "\tA\tr11,20(,r15)\n");
 
       /* 16(r15) == PIC pool pointer (pointer to literals in data section */
@@ -2963,19 +2967,19 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* FENT == function prologue entry */
       fprintf (f, "\t.balign 2\n.LFENT%06d:\n", function_label_index);
 
-      /* store multiple registers 13,14,...12 at 8 bytes from sp */
-      /* XXX FIXME: we don't have to do all of these; some are volatile. */
-      /* Certainly, the epilog doesn't bother to restore some of these. */
-      /* I guess for now, this is useful for debugging. */
-      fprintf (f, "\tSTM\tr13,r12,8(r11)\n");
+      /* Store call-used registers 13,14, etc. at 8 bytes from fp. */
+      // fprintf (f, "\tSTM\tr13,r12,8(r11)\n");
+      fprintf (f, "\tSTM\tr13,r14,8(r11)\n");
+      fprintf (f, "\tSTM\tr2,r12,28(r11)\n");
 
-      /* r13 == callee frame ptr == callee arg ptr == caller stack ptr */
+      /* r13 == callee frame ptr. r11 == caller top-of-stack ptr. */
+      /* Caller puts args at 88(r11), callee gets them from 88(r13). */
       fprintf (f, "\tLR\tr13,r11\n");
 
-      /* r11 == callee top-of-stack pointer = caller sp + stackframe size */
+      /* r11 == callee top-of-stack pointer = caller sp + stackframe size. */
       fprintf (f, "\tA\tr11,4(,r15)\n");
 
-      /* r4 will be the pointer to the code page pool for this function */
+      /* r4 will be the pointer to the code page pool for this function. */
       fprintf (f, "\tL\tr4,8(,r15)\n");
     }
 #endif /* STACK_GROWS_DOWNWARDS */
@@ -3016,9 +3020,8 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   check_label_emit();
   mvs_check_page (file,14,0);
   fprintf (file, "# Function epilogue\n");
-  fprintf (file, "\tL\tr14,12(,r13)\n");
-  fprintf (file, "\tLM\t2,12,28(r13)\n");
-  fprintf (file, "\tL\tr13,8(,r13)\n");
+  fprintf (file, "\tLM\tr2,r12,28(r13)\n");
+  fprintf (file, "\tLM\tr13,r14,8(r13)\n");
   fprintf (file, "\tBASR\tr1,r14\n");
   fprintf (file, "# Function literal pool\n");
   if (i370_enable_pic)
