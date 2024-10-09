@@ -366,10 +366,10 @@ extern void i370_override_options (void);
    Some prototyping was done for a downwards-growing stack,
    but it is an unfinished folly.
 
-   Note that the ELF calling convention is radically different
-   than the MVS/OE convention.  In particular, r11 always points
-   to the top of the stack, and r13 always points to the bottom
-   of the stack.  Thus, r13 can be used as a dual arg & frame
+   The ELF calling convention is similar to the MVS/OE calling
+   convention, but different in subtle ways.  For ELF, r11 always
+   points to the top of the stack, and r13 always points to the
+   bottom of the stack.  Thus, r13 can be used as a dual arg & frame
    pointer for all occasions, whereas r11 can be used for alloca
    and other stack-dynamic allocations.
 

@@ -788,9 +788,9 @@ check_label_emit (void)
 #endif /* TARGET_ELF_ABI */
 
 
-/* Add the label to the current page label list.  If a free element is available
-   it will be used for the new label.  Otherwise, a label element will be
-   allocated from memory.
+/* Add the label to the current page label list.  If a free element is
+   available, it will be used for the new label.  Otherwise, a label
+   element will be allocated from memory.
    ID is the label number of the label being added to the list.  */
 
 static label_node_t *
@@ -2865,6 +2865,11 @@ i370_file_end (void)
    args (== I370_VARARGS_AREA_SIZE/4).  This hard-coded limit seems to
    be a reasonable tradeoff for the otherwise much simplified and speedier
    design.
+
+   Refer to the array `regs_ever_live' to determine which registers to
+   save; `regs_ever_live[I]' is nonzero if register number I is ever
+   used in the function.  The prolog is responsible for knowing which
+   registers are volatile; these do not need to be saved, even if used.
  */
 
 static void
@@ -2922,7 +2927,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                mvs_page_num, aligned_size, mvs_page_num, mvs_page_num,
                mvs_function_name, mvs_function_name);
 
-      /* store multiple registers 13,15,0,...11 at 8 bytes from sp */
+      /* store multiple registers 13,14,15,0,...11 at 8 bytes from sp */
       fprintf (f, "\tSTM\tr13,r11,8(r11)\n");
 
       /* load frame, arg pointer from callers top-of-stack */
@@ -2947,10 +2952,10 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* Branch to executable part of prologue. */
       fprintf (f, "\tB\t.LFENT%06d\n", function_label_index);
 
-      /* write the length of the stackframe */
+      /* Write the length of the stackframe. */
       fprintf (f, "\t.long\t%d\n", aligned_size);
 
-      /* write the code page table pointer */
+      /* Write the code page table pointer. */
       fprintf (f, "\t.long\t.LPGT%d\n", mvs_page_num);
 
       fprintf (f, "\t.drop\tr15\n");
