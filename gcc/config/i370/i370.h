@@ -189,19 +189,6 @@ extern void i370_override_options (void);
 
 #define MAX_MVS_PAGE_LENGTH 4060
 
-/* Define special register allocation order desired.
-   Don't fiddle with this.  I did, and I got all sorts of register
-   spill errors when compiling even relatively simple programs...
-   I have no clue why ...
-   E.g. this one is bad:
-   { 0, 1, 2, 9, 8, 7, 6, 5, 10, 15, 14, 12, 3, 4, 16, 17, 18, 19, 11, 13 }
-   This one is good, but inefficient:
-   { 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 10, 15, 14, 12, 16, 17, 18, 19, 11, 13 }
- */
-
-#define REG_ALLOC_ORDER							\
-   { 2, 4, 5, 6, 7, 8, 9, 10, 0, 1, 15, 14, 12, 3, 16, 17, 18, 19, 11, 13 }
-
 #define PREDICATE_CODES \
   {"r_or_s_operand", { REG, SUBREG, MEM }}, \
   {"s_operand", { MEM }},
@@ -291,6 +278,17 @@ extern void i370_override_options (void);
 #undef BASE_REGISTER
 #define PAGE_REGISTER 10
 #define BASE_REGISTER 12
+
+/* Define special register allocation order desired.
+   Don't fiddle with this.  I did, and I got all sorts of register
+   spill errors when compiling even relatively simple programs...
+   I have no clue why ...
+   E.g. this one is bad:
+   { 0, 1, 2, 9, 8, 7, 6, 5, 10, 15, 14, 12, 3, 4, 16, 17, 18, 19, 11, 13 }
+ */
+
+#define REG_ALLOC_ORDER							\
+   { 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 10, 15, 14, 12, 16, 17, 18, 19, 11, 13 }
 
 #ifdef TARGET_DIGNUS
 #define FIXED_REGISTERS 						\
@@ -403,6 +401,10 @@ extern void i370_override_options (void);
    We will use the frame pointer as the arg pointer. */
 #define ARG_POINTER_REGNUM 13
 
+/* This alloc order optimizes the STM/LM in the function prologue
+   and epilogue.  */
+#define REG_ALLOC_ORDER							\
+   { 10, 9, 8, 7, 6, 5, 2, 4, 0, 1, 15, 14, 12, 3, 16, 17, 18, 19, 11, 13 }
 
 #define FIXED_REGISTERS 						\
 { 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0 }

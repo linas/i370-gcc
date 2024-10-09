@@ -2839,6 +2839,24 @@ i370_file_end (void)
 #endif /* TARGET_HLASM */
 
 #ifdef TARGET_ELF_ABI
+/* Track how many registers we have to actually save/restore.
+   Currently, we always trash 3 & 4, so must save/restore those.
+   We always trash 11 and 13, so must save/restore those.
+   Everything between 5 and 10 is a tossup; maybe the compiler
+   allocates these, and maybe not. Reg alloc order prefers r10
+   over r9 over r8, etc. so for load multiple, just find the least.
+   Future todo: move r3 & r4 to r10 & r9, so we can have a longer
+   unbroken LM/STM.  */
+
+static int least_used_register(void)
+{
+  int i;
+  for (i=5; i < 11; i++)
+    if (regs_ever_live[i])
+      return i;
+  return 11;
+}
+
 /*
    The i370_output_function_prolog() routine generates the current
    ELF ABI ES/390 prolog.
@@ -2876,7 +2894,7 @@ static void
 i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
 {
   static int function_label_index = 1;
-  int stackframe_size, aligned_size;
+  int minr, stackframe_size, aligned_size;
 
   /* store stack size where we can get to it */
 #ifdef STACK_GROWS_DOWNWARDS
@@ -2967,10 +2985,18 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* FENT == function prologue entry */
       fprintf (f, "\t.balign 2\n.LFENT%06d:\n", function_label_index);
 
-      /* Store call-used registers 13,14, etc. at 8 bytes from fp. */
-      // fprintf (f, "\tSTM\tr13,r12,8(r11)\n");
+      /* Store call-used registers 13,14, etc. at 8 bytes from fp.
+         For debugging corruption in user code, store them all.
+         For good results, store 13,14 and r2 to r12.
+         For best results, ask the compiler what was used.
+         Not clear if this optimization is worth it, but whatever. */
+      /* fprintf (f, "\tSTM\tr13,r12,8(r11)\n"); */
+
       fprintf (f, "\tSTM\tr13,r14,8(r11)\n");
-      fprintf (f, "\tSTM\tr2,r12,28(r11)\n");
+      /* fprintf (f, "\tSTM\tr2,r12,28(r11)\n"); */
+      minr = least_used_register();
+      fprintf (f, "\tSTM\tr2,r4,28(r11)\n");
+      fprintf (f, "\tSTM\tr%d,r12,%d(r11)\n", minr, 20+4*minr);
 
       /* r13 == callee frame ptr. r11 == caller top-of-stack ptr. */
       /* Caller puts args at 88(r11), callee gets them from 88(r13). */
@@ -3017,10 +3043,13 @@ static void
 i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
 {
   int i;
+  int minr;
   check_label_emit();
   mvs_check_page (file,14,0);
+  minr = least_used_register();
   fprintf (file, "# Function epilogue\n");
-  fprintf (file, "\tLM\tr2,r12,28(r13)\n");
+  fprintf (file, "\tLM\tr2,r4,28(r13)\n");
+  fprintf (file, "\tLM\tr%d,r12,%d(r13)\n", minr, 20+4*minr);
   fprintf (file, "\tLM\tr13,r14,8(r13)\n");
   fprintf (file, "\tBASR\tr1,r14\n");
   fprintf (file, "# Function literal pool\n");
