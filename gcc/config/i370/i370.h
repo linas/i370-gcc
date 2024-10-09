@@ -195,11 +195,12 @@ extern void i370_override_options (void);
    I have no clue why ...
    E.g. this one is bad:
    { 0, 1, 2, 9, 8, 7, 6, 5, 10, 15, 14, 12, 3, 4, 16, 17, 18, 19, 11, 13 }
+   This one is good, but inefficient:
+   { 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 10, 15, 14, 12, 16, 17, 18, 19, 11, 13 }
  */
 
 #define REG_ALLOC_ORDER							\
-   { 2, 3, 4, 5, 6, 7, 8, 9, 0, 1, 10, 15, 14, 12, 16, 17, 18, 19, 11, 13 }
-
+   { 2, 4, 5, 6, 7, 8, 9, 10, 0, 1, 15, 14, 12, 3, 16, 17, 18, 19, 11, 13 }
 
 #define PREDICATE_CODES \
   {"r_or_s_operand", { REG, SUBREG, MEM }}, \
