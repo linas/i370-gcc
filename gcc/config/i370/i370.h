@@ -36,6 +36,12 @@ Boston, MA 02111-1307, USA.  */
     }						\
   while (0)
 
+#ifndef SUBTARGET_EXTRA_SPECS
+#define SUBTARGET_EXTRA_SPECS
+#endif
+#define EXTRA_SPECS				\
+  SUBTARGET_EXTRA_SPECS
+
 /* Run-time compilation parameters selecting different hardware subsets.  */
 
 extern int target_flags;
