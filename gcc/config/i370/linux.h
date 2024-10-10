@@ -39,7 +39,7 @@ Boston, MA 02111-1307, USA.  */
 /* TARGET_EXTRA_SPECS for correct linking on Linux */
 
 #define STARTFILE_LINUX_SPEC "\
-%{!shared: crt0.o%s} \
+%{!shared: crt1.o%s} \
 %{pdpclib: foobari.o%s} \
 %{!pdpclib: crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
 

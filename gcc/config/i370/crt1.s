@@ -8,7 +8,7 @@
 #
 # Written by Linas Vepstas, October 2024
 
-	.file    "crt0.s"
+	.file    "crt1.s"
 
 	.section .text
 	.global _start
