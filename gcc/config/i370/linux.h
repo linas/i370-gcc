@@ -36,6 +36,32 @@ Boston, MA 02111-1307, USA.  */
 #define LIBGCC_SPEC "libgcc.a%s"
 
 /* ======================================================== */
+/* TARGET_EXTRA_SPECS for correct linking on Linux */
+
+#define STARTFILE_LINUX_SPEC "\
+%{!shared: crt0.o%s} \
+%{pdpclib: foobari.o%s} \
+%{!pdpclib: crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
+
+#define ENDFILE_LINUX_SPEC "\
+%{pdpclib: foobaro.o%s} \
+%{!pdpclib: %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s}"
+
+#define LINK_START_LINUX_SPEC "-Ttext 0x10000"
+
+#define CPP_OS_LINUX_SPEC "-D__unix__ -D__gnu_linux__ -D__linux__ \
+%{!ansi: -Dunix -Dlinux } \
+-Asystem=unix -Asystem=linux"
+
+/* Define any extra SPECS that the compiler needs to generate.  */
+#undef  SUBTARGET_EXTRA_SPECS
+#define SUBTARGET_EXTRA_SPECS                                           \
+  { "startfile_linux",          STARTFILE_LINUX_SPEC },                 \
+  { "endfile_linux",            ENDFILE_LINUX_SPEC },                   \
+  { "link_start_linux",         LINK_START_LINUX_SPEC },                \
+  { "cpp_os_linux",             CPP_OS_LINUX_SPEC },                    \
+
+/* ======================================================== */
 /* Nothing below is used. Its a reminder of what could be done,
  * if we wanted to do something non-standard.
  */
@@ -75,24 +101,9 @@ Boston, MA 02111-1307, USA.  */
 %{!mnewlib: %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s}"
 #endif
 
-#ifndef LINK_START_LINUX_SPEC
-#define LINK_START_LINUX_SPEC "-Ttext 0x10000"
-#endif
-
 #ifndef LINK_OS_LINUX_SPEC
 #define LINK_OS_LINUX_SPEC ""
 #endif
-
-#ifndef CPP_OS_LINUX_SPEC
-#define CPP_OS_LINUX_SPEC "-D__unix__ -D__gnu_linux__ -D__linux__ \
-%{!ansi: -Dunix -Dlinux } \
--Asystem=unix -Asystem=linux"
-#endif
-
-#ifndef CPP_OS_LINUX_SPEC
-#define CPP_OS_LINUX_SPEC ""
-#endif
-
 
 /* Define any extra SPECS that the compiler needs to generate.  */
 #undef  SUBTARGET_EXTRA_SPECS
