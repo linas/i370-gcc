@@ -80,8 +80,9 @@ _start:
 
 	LA      r14,12(,r11)   # Set up link register
 
-	L       r15,=A(_init)  # Get address of _init()
-	BASR    r14,r15        # BASR will write PSW to 12(,r11)
+# Not today
+#	L       r15,=A(_init)  # Get address of _init()
+#	BASR    r14,r15        # BASR will write PSW to 12(,r11)
 
 	L       r15,=A(main)   # Get address of main()
 	BASR    r14,r15        # BASR will write PSW to 12(,r11)

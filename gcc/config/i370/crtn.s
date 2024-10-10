@@ -15,7 +15,7 @@
 # Function page table
 	.balign	4
 _initpgtable:
-	.long	_initpage
+	.long	0xf00f # Well, we didn't set up r4 anyway ...  _initpage
 # Uhhh
 #	.size _init, .-_init
 
@@ -27,6 +27,6 @@ _initpgtable:
 # Function page table
 	.balign	4
 _finipgtable:
-	.long	_finipage
+	.long	0xd00de # Not today _finipage
 # Uhhh
 #	.size _fini, .-_fini

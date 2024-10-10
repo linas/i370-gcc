@@ -24,18 +24,15 @@ _init:
 	.using	.,r15
 	B	.Linit
 	.long	88	# stacksize
-	.long	_initpgtable
+	.long	0  # _initpgtable but we can't have one.
 	.drop	r15
 	.balign	2
 .Linit:
 	STM	r13,r12,8(r11)
 	LR	r13,r11
 	A	r11,4(,r15)
-	L	r4,8(,r15)
 	BASR	r3,0
 	.using	.,r3
-_initpage:
-	ST	r4,0(r13)
 
 
 	.section .fini
@@ -45,15 +42,12 @@ _fini:
 	.using	.,r15
 	B	.Lfini
 	.long	88	# stacksize
-	.long	_finipgtable
+	.long	0  # Cannot have _finipgtable here.
 	.drop	r15
 	.balign	2
 .Lfini:
 	STM	r13,r12,8(r11)
 	LR	r13,r11
 	A	r11,4(,r15)
-	L	r4,8(,r15)
 	BASR	r3,0
 	.using	.,r3
-_finipage:
-	ST	r4,0(r13)
