@@ -2921,9 +2921,17 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
 #ifdef STACK_GROWS_DOWNWARDS
   /* If you want your stack to grow down, you will need to create this piece. */
 #else /* STACK_GROWS_DOWNWARDS */
+
+  /* Strange. With some compiler flags (not sure which), the RTX for
+     a function name gets a * in front of the name.  This is added
+     in make_decl_rtl() and see also assemble_name() in ../../varasm.c.
+     Not sure what triggers this.  But we can't pass it to gas.  */
+  char * fnname = mvs_function_name;
+  if ('*' == *fnname) fnname++;
   if (i370_enable_pic)
     {
-      /* Use register 12 as base register for addressing into the data section. */
+      /* Use register 12 as base register for addressing
+        into the data section.  */
       fprintf (f, "# Function %s data segment PIC glue \n"
                   ".data\n"
                   "\t.balign 4\n"
@@ -2940,10 +2948,9 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   ".previous\n"
                   "# Function %s prologue \n"
                   "%s.textentry:\n",
-               mvs_function_name,
-               mvs_function_name, mvs_function_name,
+               fnname, fnname, fnname,
                mvs_page_num, aligned_size, mvs_page_num, mvs_page_num,
-               mvs_function_name, mvs_function_name);
+               fnname, fnname);
 
       /* Store multiple registers 13,14 at 8 bytes from sp */
       /* The full STM r13,r11,8(r11) is handy for user debug, */
@@ -2969,7 +2976,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
     {
       fprintf (f, "%s:\n"
                   "# Function prologue\n"
-                  "\t.using\t.,r15\n", mvs_function_name);
+                  "\t.using\t.,r15\n", fnname);
 
       /* Branch to executable part of prologue. */
       fprintf (f, "\tB\t.LFENT%06d\n", function_label_index);
