@@ -1659,7 +1659,7 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
             } else {
 	       fprintf (fh, "=XL8'FFFFFFFF");
             }
-	    fprintf (fh, "%08X'", INTVAL (XV));
+	    fprintf (fh, "%08lX'", INTVAL (XV));
 	  }
 	else
 	  {
