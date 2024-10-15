@@ -27,6 +27,10 @@ _initpgtable:
 # Function page table
 	.balign	4
 _finipgtable:
-	.long	0xd00de # Not today _finipage
+	.long	0x123d00de # Not today _finipage
 # Uhhh
 #	.size _fini, .-_fini
+
+	.section .note.GNU-stack
+	.balign	4
+	.long	0xbaadf00d
