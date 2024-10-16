@@ -51,3 +51,7 @@ _fini:
 	A	r11,4(,r15)
 	BASR	r3,0
 	.using	.,r3
+
+   .section .note.GNU-stack
+   .balign  4
+   .long 0xbaadf00d
