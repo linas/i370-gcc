@@ -3102,6 +3102,9 @@ i370_file_start ()
 static void
 i370_file_end (void)
 {
+  unsigned int flags = SECTION_DEBUG;
+  named_section_flags (".note.GNU-stack", flags);
+
   /* fputs ("\tEND\n", asm_out_file); */
 }
 #endif /* TARGET_ELF_ABI */
