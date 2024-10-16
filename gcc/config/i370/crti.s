@@ -17,6 +17,10 @@
 	.file   "crti.s"
 	.ident  "GNU C crti.s"
 
+# I don't get it. We don't want an executable stacck, but if I
+# I don't add this, I get warnings from the linker.
+#   .section .note.GNU-stack
+
 	.section .init
 	.globl	_init
 	.type	_init,@function
@@ -51,7 +55,3 @@ _fini:
 	A	r11,4(,r15)
 	BASR	r3,0
 	.using	.,r3
-
-   .section .note.GNU-stack
-   .balign  4
-   .long 0xbaadf00d

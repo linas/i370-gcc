@@ -7,6 +7,10 @@
 	.file   "crtn.s"
 	.ident  "GNU C crtn.s"
 
+# I don't get it. We don't want an executable stacck, but if I
+# I don't add this, I get warnings from the linker.
+#	.section .note.GNU-stack
+
 	.section .init
 	L	r14,12(,r13)
 	LM	2,12,28(r13)
@@ -30,7 +34,3 @@ _finipgtable:
 	.long	0x123d00de # Not today _finipage
 # Uhhh
 #	.size _fini, .-_fini
-
-	.section .note.GNU-stack
-	.balign	4
-	.long	0xbaadf00d

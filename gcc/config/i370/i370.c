@@ -3102,8 +3102,18 @@ i370_file_start ()
 static void
 i370_file_end (void)
 {
+  /* Without this, linker issues the warning
+        "missing .note.GNU-stack section implies executable stack"
+     With this, the linker issues the warning
+        "requires executable stack (because the .note.GNU-stack section is executable)"
+     and then creates crazy overlapping sections when building the
+     kernel. So I don't understand the correct fix. We don't want or
+     need an executale stack.  */
+
+#if 0
   unsigned int flags = SECTION_DEBUG;
   named_section_flags (".note.GNU-stack", flags);
+#endif
 
   /* fputs ("\tEND\n", asm_out_file); */
 }
