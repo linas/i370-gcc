@@ -148,7 +148,7 @@ static bool i370_rtx_costs (rtx, int, int, int *);
  * Apparently, we sometimes get 16-bit signed shorts that have not been
  * correctly sign extended to the host (wide) integer; we have to print
  * these correctly if they are actually negative. The below forces a
- * sign extension, first, by exlicitly casting to a signed short, and
+ * sign extension, first, by explicitly casting to a signed short, and
  * then back again to the host wide int. This should work on both 32-bit
  * and 64-bit hosts.
  */
@@ -391,7 +391,7 @@ mvs_make_float (REAL_VALUE_TYPE r)
 {
    char *p;
    /* The printed float will be this many characters long,
-      including the E+44 at the end. Double precisions has
+      including the E+44 at the end. Double precision has
       only 23 decimal places of precision. Printing more
       than this exposes bugs in the assembler.  */
    static char buf[30];
