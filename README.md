@@ -54,7 +54,7 @@ gcc in a cross-compile environment, it is also installed to
 Objects and libraries such as `crtbegin.o`, `libgcc_s.so.1` etc.
 are installed into `/usr/local/lib/gcc/i370-ibm-linux/3.4.6`.
 
-Other targets include:
+Other targets for other operating systems include:
 ```
 --target=i370-ibm-cms
 --target=i370-ibm-mvsle
@@ -63,7 +63,68 @@ Other targets include:
 --target=i370-ibm-mvs38_dignus
 --target=i370-ibm-opened
 ```
-The configuration for these is defined in the `gcc/config.gcc` file.
+These differ from each-other in how subroutine calls work (argument
+passing, stack management, return values). They all emit pure HLASM.
+These differ from `i370-ibm-linux` in the type of assembly emitted:
+the `i370-ibm-linux` target emits svr4-elf style assembly (lower-case
+pseudo-ops, labels with a dot prefix, standard ELF section names, etc.)
+
+Both types of emitted assembly can be assembled with the binutils
+assembler, available here:
+[github.com/linas/i370-binutils](https://github.com/linas/i370-binutils).
+This assembler is explicitly HLASM-compatible. At this time, this
+assembler emits only ELF file format binaries (it does not support
+the [ESD/XSD/GOFF](https://en.wikipedia.org/wiki/GOFF) object format
+used by MVS.) There is a linker/loader that can link together both
+ELF and MVS binaries together; inquire with the PDOS maintainer.
+(Thus, in principle, the ELF binaries created by binutils can be
+transformed into executables that run on MVS. !? Thus, one has a
+complete free & open source toolchain for MVS. !?)
+
+The configuration for the different OS targets is defined in the
+`gcc/config.gcc` file.
+
+
+## Cross-host builds
+Cross-host builds are a bit tricky. The goal here is to build a version
+of gcc that will run on the i370. Assuming you have a C Library for the
+i370, then the following should be enough:
+```
+mkdir build-libc
+cd build-libc
+export SYSROOT=/usr/local/i370-linux-uclibc
+../configure --target=i370-ibm-linux --host=i370-ibm-linux --enable-languages="c" --disable-threads --prefix=$SYSROOT/usr
+make
+```
+Here, `SYSROOT` provides the location of the C Library to link to.
+Change as appropriate.
+
+In practice, several hard-to-debug issues arise. Listed below.
+* If you cross-installed binutils, then it installed a file
+  `$SYSROOT/usr/include/ansidecl.h` which clobbers the libiberty
+  `ansidecl.h` and screws up the build. Try
+  `sudo rm ${SYSROOT}/usr/include/ansidecl.h`
+  That should get you past failures in libiberty.
+
+* If you cross-installed binutils, then it might have installed
+  i370 versions of `as`, `ld`, `nm` etc. in
+  `$SYSROOT/usr/i370-ibm-linux/bin/`. The `xgcc` cross-compiler
+  attempts to uses these, but can't, because its still on the
+  builder system, not the i370.  One way to hack around this is to
+  `sudo cp -p /usr/local/i370-ibm-linux/bin/* $SYSROOT/usr/i370-ibm-linux/bin/`
+
+* You may still get `has no index` errors. That's because the
+  cross-compiler attempted to use `i370-ibm-linux-ar` instead of the
+  builder `ar`. The quick-n-dirty hack is to
+  `ranlib libiberty/libiberty.a; make` (may be needed twice), and then
+  later `ranlib ./gcc/libcpp.a; ranlib ./gcc/libbackend.a; make`
+  That should do the trick.
+
+How to get a C library is explained at
+[github.com/linas/i370-bigfoot](https://github.com/linas/i370-bigfoot).
+That demonstrates a working uClibc and also a working Busybox. It's
+possible that PDPCLIB might work, but that remains unclear.
+
 
 
 Original GNU README
