@@ -38,91 +38,25 @@ Boston, MA 02111-1307, USA.  */
 /* ======================================================== */
 /* TARGET_EXTRA_SPECS for correct linking on Linux */
 
-#define STARTFILE_LINUX_SPEC "\
-%{!shared: crt1.o%s} \
-%{pdpclib: foobari.o%s} \
-%{!pdpclib: crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
+#define STARTFILE_SPEC "\
+%{!shared: crt1.o%s} crti.o%s \
+%{!shared: crtbegin.o%s} %{shared: crtbeginS.o%s}"
 
-#define ENDFILE_LINUX_SPEC "\
-%{pdpclib: foobaro.o%s} \
-%{!pdpclib: %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s}"
+#define ENDFILE_SPEC "\
+%{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
 
-#define LINK_START_LINUX_SPEC "-Ttext 0x10000"
+#define LINK_START_SPEC "-Ttext 0x10000"
 
-#define CPP_OS_LINUX_SPEC "-D__unix__ -D__gnu_linux__ -D__linux__ \
+#define CPP_OS_SPEC "-D__unix__ -D__gnu_linux__ -D__linux__ \
 %{!ansi: -Dunix -Dlinux } \
 -Asystem=unix -Asystem=linux"
 
 /* Define any extra SPECS that the compiler needs to generate.  */
 #undef  SUBTARGET_EXTRA_SPECS
-#define SUBTARGET_EXTRA_SPECS                                           \
-  { "startfile_linux",          STARTFILE_LINUX_SPEC },                 \
-  { "endfile_linux",            ENDFILE_LINUX_SPEC },                   \
-  { "link_start_linux",         LINK_START_LINUX_SPEC },                \
-  { "cpp_os_linux",             CPP_OS_LINUX_SPEC },                    \
+#define SUBTARGET_EXTRA_SPECS                               \
+  { "startfile",          STARTFILE_SPEC },                 \
+  { "endfile",            ENDFILE_SPEC },                   \
+  { "link_start",         LINK_START_SPEC },                \
+  { "cpp_os",             CPP_OS_SPEC },                    \
 
 /* ======================================================== */
-/* Nothing below is used. Its a reminder of what could be done,
- * if we wanted to do something non-standard.
- */
-#ifdef SOME_FUTURE_DAY
- 
-#define CPP_SPEC "%{posix: -D_POSIX_SOURCE} %(cpp_sysv) %(cpp_endian_big) \
-%{mcall-linux: %(cpp_os_linux) } \
-%{!mcall-linux: %(cpp_os_default) }"
-
-#define LIB_SPEC "\
-%{mcall-linux: %(lib_linux) } \
-%{!mcall-linux:%(lib_default) }"
-
-#define STARTFILE_SPEC "\
-%{mcall-linux: %(startfile_linux) } \
-%{!mcall-linux: %(startfile_default) }"
-
-#define ENDFILE_SPEC "\
-%{mcall-linux: %(endfile_linux) } \
-%{!mcall-linux: %(endfile_default) }"
-
-/* GNU/Linux support.  */
-#ifndef LIB_LINUX_SPEC
-#define LIB_LINUX_SPEC "%{mnewlib: --start-group -llinux -lc --end-group } %{!mnewlib: -lc }"
-#endif
-
-#ifndef STARTFILE_LINUX_SPEC
-#define STARTFILE_LINUX_SPEC "\
-%{!shared: %{pg:gcrt1.o%s} %{!pg:%{p:gcrt1.o%s} %{!p:crt1.o%s}}} \
-%{mnewlib: ecrti.o%s} \
-%{!mnewlib: crti.o%s %{!shared:crtbegin.o%s} %{shared:crtbeginS.o%s}}"
-#endif
-
-#ifndef ENDFILE_LINUX_SPEC
-#define ENDFILE_LINUX_SPEC "\
-%{mnewlib: ecrtn.o%s} \
-%{!mnewlib: %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s}"
-#endif
-
-#ifndef LINK_OS_LINUX_SPEC
-#define LINK_OS_LINUX_SPEC ""
-#endif
-
-/* Define any extra SPECS that the compiler needs to generate.  */
-#undef  SUBTARGET_EXTRA_SPECS
-#define SUBTARGET_EXTRA_SPECS                                           \
-  { "lib_linux",                LIB_LINUX_SPEC },                       \
-  { "lib_default",              LIB_DEFAULT_SPEC },                     \
-  { "startfile_linux",          STARTFILE_LINUX_SPEC },                 \
-  { "startfile_default",        STARTFILE_DEFAULT_SPEC },               \
-  { "endfile_linux",            ENDFILE_LINUX_SPEC },                   \
-  { "endfile_default",          ENDFILE_DEFAULT_SPEC },                 \
-  { "link_shlib",               LINK_SHLIB_SPEC },                      \
-  { "link_target",              LINK_TARGET_SPEC },                     \
-  { "link_start",               LINK_START_SPEC },                      \
-  { "link_start_linux",         LINK_START_LINUX_SPEC },                \
-  { "link_os",                  LINK_OS_SPEC },                         \
-  { "link_os_linux",            LINK_OS_LINUX_SPEC },                   \
-  { "link_os_default",          LINK_OS_DEFAULT_SPEC },                 \
-  { "cpp_endian_big",           CPP_ENDIAN_BIG_SPEC },                  \
-  { "cpp_os_linux",             CPP_OS_LINUX_SPEC },                    \
-  { "cpp_os_default",           CPP_OS_DEFAULT_SPEC },
-
-#endif /* SOME_FUTURE_DAY */
