@@ -38,10 +38,12 @@ Boston, MA 02111-1307, USA.  */
 /* ======================================================== */
 /* TARGET_EXTRA_SPECS for correct linking on Linux */
 
+#undef STARTFILE_SPEC
 #define STARTFILE_SPEC "\
 %{!shared: crt1.o%s} crti.o%s \
 %{!shared: crtbegin.o%s} %{shared: crtbeginS.o%s}"
 
+#undef ENDFILE_SPEC
 #define ENDFILE_SPEC "\
 %{!shared:crtend.o%s} %{shared:crtendS.o%s} crtn.o%s"
 
