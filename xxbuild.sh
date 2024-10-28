@@ -28,7 +28,7 @@ make configure-gcc
 cd gcc
 export CFG=../../gcc/configure
 rm -r *
-$CFG --target=i370-ibm-linux --host=i370-ibm-linux --enable-languages="c" --disable-threads --prefix=$SYSROOT/usr
+CPPFLAGS="-I$SYSROOT/usr/include" CFLAGS="$CPPFLAGS -B$SYSROOT/usr/lib -L$SYSROOT/usr/lib" $CFG --target=i370-ibm-linux --host=i370-ibm-linux --enable-languages="c" --disable-threads --prefix=$SYSROOT/usr
 ## make
 cd ..
 

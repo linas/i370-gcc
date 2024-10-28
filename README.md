@@ -104,6 +104,14 @@ make it work. It keeps using the wrong compiler, or uses the wrong
 include files, or uses the wrong assembler. Tried to hack around this
 with the `xxbuild.sh` script, and it almost works. But not quite.
 
+The trainwreck involves `genmodes`. This needs to exeutable on the
+builder (lets assume x86_64, for example). This needs a version of
+libiberty for x86_64, too. Great. The `genmodes` tool generates the
+actual compiler from the machine description (in `i370.md`). Great!
+The result should then be built with `i370-ibm-linux-gcc`, but it
+isn't: the x86 version of `gcc` gets used instead. Argh! I can't get
+it to switch over.
+
 In practice, several hard-to-debug issues arise. Listed below.
 * If you cross-installed binutils, then it installed a file
   `$SYSROOT/usr/include/ansidecl.h` which clobbers the libiberty
