@@ -99,26 +99,17 @@ make
 Here, `SYSROOT` provides the location of the C Library to link to.
 Change as appropriate.
 
+XXX Except the above does not actually work. I can't figure out how to
+make it work. It keeps using the wrong compiler, or uses the wrong
+include files, or uses the wrong assembler. Tried to hack around this
+with the `xxbuild.sh` script, and it almost works. But not quite.
+
 In practice, several hard-to-debug issues arise. Listed below.
 * If you cross-installed binutils, then it installed a file
   `$SYSROOT/usr/include/ansidecl.h` which clobbers the libiberty
   `ansidecl.h` and screws up the build. Try
   `sudo rm ${SYSROOT}/usr/include/ansidecl.h`
   That should get you past failures in libiberty.
-
-* If you cross-installed binutils, then it might have installed
-  i370 versions of `as`, `ld`, `nm` etc. in
-  `$SYSROOT/usr/i370-ibm-linux/bin/`. The `xgcc` cross-compiler
-  attempts to uses these, but can't, because its still on the
-  builder system, not the i370.  One way to hack around this is to
-  `sudo cp -p /usr/local/i370-ibm-linux/bin/* $SYSROOT/usr/i370-ibm-linux/bin/`
-
-* You may still get `has no index` errors. That's because the
-  cross-compiler attempted to use `i370-ibm-linux-ar` instead of the
-  builder `ar`. The quick-n-dirty hack is to
-  `ranlib libiberty/libiberty.a; make` (may be needed twice), and then
-  later `ranlib ./gcc/libcpp.a; ranlib ./gcc/libbackend.a; make`
-  That should do the trick.
 
 How to get a C library is explained at
 [github.com/linas/i370-bigfoot](https://github.com/linas/i370-bigfoot).
