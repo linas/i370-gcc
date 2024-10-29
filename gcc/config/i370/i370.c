@@ -92,7 +92,7 @@ int mvs_gotmain = 0;
 int mvs_need_to_globalize = 1;
 
 /* Current function starting base page.  */
-int function_base_page;
+int function_base_page = 0;
 
 /* Length of the current page code.  */
 int mvs_page_code;
@@ -127,8 +127,14 @@ static label_node_t *free_anchor = 0;
 /* Assembler source file descriptor.  */
 static FILE *assembler_source = 0;
 
-/* Flag that enables position independent code */
+/* Flag that enables position independent code. */
 int i370_enable_pic = 1;
+
+/* ID number for PIC literal pools. */
+int i370_pic_pool_num = 0;
+
+/* First PIC pool of the function. */
+int function_base_pic_pool = 0;
 
 static label_node_t * mvs_get_label (int);
 static void i370_label_scan (void);
@@ -736,13 +742,13 @@ i370_label_scan (void)
    Disabling this flag frees r12 for general purpose use, but makes the
    code non-relocatable.  The non-pic table resemble the mvs-style table.
    The pic table stores values for both r3 (the register used for branching)
-   and r12 (the register to index the literal pool, also in the data section).
-   Thus, the ELF pic version has twice as many entries, and double the offset.
+   and r12 (the register to index the literal pool, kept in the data section).
+   Thus, the ELF pic version has more entries.
 
      .LPGT0:          // PGT0 EQU *
      .long .LPG0      // DC A(PG0)
-     .long .LPOOL0
      .long .LPG1      // DC A(PG1)
+     .long .LPOOL0
      .long .LPOOL1
 
   Note that the function prologue loads the page addressing register r4:
@@ -1117,8 +1123,10 @@ mvs_check_page (FILE *file, int code, int lit)
                                      "\t.drop\tr%d\n"
                                      "\t.using\t.LPOOL%d,r%d\n"
                                      ".previous\n",
-                   mvs_page_num, PIC_BASE_REGISTER,
-                   mvs_page_num+1, PIC_BASE_REGISTER);
+                   i370_pic_pool_num, PIC_BASE_REGISTER,
+                   i370_pic_pool_num+1, PIC_BASE_REGISTER);
+
+          i370_pic_pool_num++;
 
           /* Reset the counter. */
           mvs_page_lit = lit;
@@ -3044,8 +3052,8 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   "# Function %s prologue \n"
                   "%s.textentry:\n",
                fnname, fnname, fnname,
-               mvs_page_num, aligned_size, mvs_page_num, mvs_page_num,
-               fnname, fnname);
+               i370_pic_pool_num, aligned_size, mvs_page_num,
+               i370_pic_pool_num, fnname, fnname);
 
       /* Store multiple registers 13,14 at 8 bytes from sp */
       /* The full STM r13,r11,8(r11) is handy for user debug, */
@@ -3128,6 +3136,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   mvs_page_lit = 4;
   mvs_check_page (f, 0, 0);
   function_base_page = mvs_page_num;
+  function_base_pic_pool = i370_pic_pool_num;
   just_referenced_page = -1;
   mvs_need_base_reload = 0;
 
@@ -3161,17 +3170,19 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
     {
       fprintf (file, ".data\n");
       fprintf (file, "\t.balign\t4\n");
-      fprintf (file, ".LPOOL%d:\n",mvs_page_num);
+      fprintf (file, ".LPOOL%d:\n",i370_pic_pool_num);
       fprintf (file, "\t.ltorg\n");
       fprintf (file, "# Function page table\n");
       fprintf (file, "\t.balign\t4\n");
       fprintf (file, ".LPGT%d:\n", function_base_page);
       mvs_page_num++;
-      for ( i = function_base_page; i < mvs_page_num; i++ )
-        {
-          fprintf (file, "\t.long\t.LPG%d\n", i);
+      for (i = function_base_page; i < mvs_page_num; i++)
+        fprintf (file, "\t.long\t.LPG%d\n", i);
+
+      i370_pic_pool_num++;
+      for (i = function_base_pic_pool; i < i370_pic_pool_num; i++)
           fprintf (file, "\t.long\t.LPOOL%d\n", i);
-        }
+
       /* fprintf (file, ".previous\n"); Now done in ASM_DECLARE_FUNCTION_SIZE */
     }
   else
