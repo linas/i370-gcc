@@ -612,27 +612,45 @@ i370_label_scan (void)
                else
                if (ADDR_DIFF_VEC == GET_CODE(body))
                  {
-/* XXX hack alert.
-   Right now, we leave this as a no-op, but strictly speaking,
-   this is incorrect.  It is possible that a table-jump
-   driven off of a relative address could take us off-page,
-   to a place where we need to reload the base reg.  So really,
-   we need to examining both labels, and compare their values
-   to the current basereg value.
-
-   More generally, this brings up a troubling issue overall:
-   what happens if a tablejump is split across two pages? I do
-   not believe that this case is handled correctly at all, and
-   can only lead to horrible results if this were to occur.
-
-   However, the current situation is not any worse than it was
-   last week, and so we punt for now.  */
-
-                    printf("Unimplemented jump. Bad code generated here.\n");
-                    debug_rtx (insn);
-                    for (j=0; j < XVECLEN (body, 0); j++)
+                   /* PC-relative table jump. A typical example
+                    * of the generated code looks like this:
+                    *
+                    *        L  r10,some index
+                    *        L  r9,=A(.L259)
+                    *        L  r10,0(r10,r9)
+                    *        BR r10
+                    *     .L259:
+                    *        .long .L258-.L259
+                    *        .long .L257-.L259
+                    *        .long .L256-.L259
+                    *        .long .L255-.L259
+                    *        .long .L254-.L259
+                    *        .long .L253-.L259
+                    *        .long .L252-.L259
+                    *     .L252:
+                    *
+                    * The above looks fine, even for huge tables.
+                    * The relative addrs will be 32-bit quantities,
+                    * they're constants that relocation shouldn't
+                    * touch. The BR will always go right, no matter
+                    * how many XVECLEN (body, 1) we happen to get.
+                    * We can do the I370_RECORD_LABEL_REF but it
+                    * changes nothing and can be safely ignored.
+                    */
+#ifdef POINTLESS_WORK
+                    rtx lbase = XEXP (body, 0);
+                    if (LABEL_REF != GET_CODE (lbase)) abort();
+                    for (j=0; j < XVECLEN (body, 1); j++)
                       {
+                         rtx lref = XVECEXP (body, 1, j);
+                         if (LABEL_REF != GET_CODE (lref)) abort ();
+                         label = XEXP (lref,0);
+                         if (CODE_LABEL != GET_CODE (label)) abort ();
+                         tablejump_offset += 4;
+                         here += 4;
+                         I370_RECORD_LABEL_REF(label,here);
                       }
+#endif /* POINTLESS_WORK */
                     /* finished with the vector go do next insn */
                     continue;
                  }
@@ -650,7 +668,7 @@ i370_label_scan (void)
    off than yesterday.  */
 
                     /* print_rtl_single (stdout, insn); */
-                    printf("Unimplemented indeirect jump. Bad code generated here.\n");
+                    printf("Unimplemented indirect jump. Bad code generated here.\n");
                     debug_rtx (insn);
                     /* abort(); */
                     continue;
@@ -1943,7 +1961,7 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	    mvs_page_lit += 4;
 	    /* Avoid -1 being printed as =F'9223372036854775807' */
 	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'",
-		(int) (INTVAL (XV) & 0xffffffff));
+		(INTVAL (XV) & 0xffffffff));
 	  }
 	break;
       case CONST_DOUBLE:
@@ -2458,7 +2476,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   mvs_check_page (f, 0, 0);
   function_base_page = mvs_page_num;
 
-  /* find all labels in this routine */
+  /* Find all labels in this routine. */
   i370_label_scan ();
 }
 
@@ -2518,7 +2536,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT l)
   mvs_check_page (f, 0, 0);
   function_base_page = mvs_page_num;
 
-  /* find all labels in this routine */
+  /* Find all labels in this routine. */
   i370_label_scan ();
 }
 #endif /* TARGET_PDOSGB */
@@ -3041,7 +3059,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   mvs_check_page (f, 0, 0);
   function_base_page = mvs_page_num;
 
-  /* find all labels in this routine */
+  /* Find all labels in this routine. */
   i370_label_scan ();
 }
 
