@@ -596,7 +596,8 @@ i370_label_scan (void)
                rtx body = PATTERN (insn);
                if (ADDR_VEC == GET_CODE(body))
                  {
-                    for (j=0; j < XVECLEN (body, 0); j++)
+                    int veclen = XVECLEN (body, 0);
+                    for (j=0; j < veclen; j++)
                       {
                          rtx lref = XVECEXP (body, 0, j);
                          if (LABEL_REF != GET_CODE (lref)) abort ();
@@ -606,7 +607,9 @@ i370_label_scan (void)
                          here += 4;
                          I370_RECORD_LABEL_REF(label,here);
                       }
-                    /* finished with the vector go do next insn */
+                    mvs_check_page(0, 4*veclen, 0);
+
+                    /* Finished with the vector. Go do next insn. */
                     continue;
                  }
                else
@@ -637,10 +640,11 @@ i370_label_scan (void)
                     * We can do the I370_RECORD_LABEL_REF but it
                     * changes nothing and can be safely ignored.
                     */
-#ifdef POINTLESS_WORK
+                    int veclen = XVECLEN (body, 1);
                     rtx lbase = XEXP (body, 0);
                     if (LABEL_REF != GET_CODE (lbase)) abort();
-                    for (j=0; j < XVECLEN (body, 1); j++)
+#ifdef POINTLESS_WORK
+                    for (j=0; j < veclen; j++)
                       {
                          rtx lref = XVECEXP (body, 1, j);
                          if (LABEL_REF != GET_CODE (lref)) abort ();
@@ -651,7 +655,9 @@ i370_label_scan (void)
                          I370_RECORD_LABEL_REF(label,here);
                       }
 #endif /* POINTLESS_WORK */
-                    /* finished with the vector go do next insn */
+                    mvs_check_page(0, 4*veclen, 0);
+
+                    /* Finished with the vector. Go do next insn. */
                     continue;
                  }
                else
