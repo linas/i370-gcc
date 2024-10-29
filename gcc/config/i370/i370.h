@@ -1762,12 +1762,12 @@ enum reg_class
 /* #define ASM_OUTPUT_LABELREF(FILE, NAME) */	/* use gas -- defaults.h */
 
 /* Called at the start of relative or absolute jump table.
-   Great time to dump the literal pool. Start a counter,
-   so that we might know how long the case table is.  */
+   Great time to dump the literal pool. Start a counter, so that
+   we might know how long the case table is.  Only done for non-PIC
+   code; the literal pool is in the data section for PIC code, and
+   so nothing extra is neded here.  */
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)  \
-  if (i370_enable_pic) {                                 \
-    fprintf (FILE, "# PIC. Do something here ???\n");    \
-  } else {                                               \
+  if (0 == i370_enable_pic) {                            \
     fprintf (FILE, "\t.ltorg\n");                        \
     fprintf (FILE, "\t.balign 4\n");                     \
   }                                                      \
