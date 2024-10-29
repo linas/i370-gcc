@@ -1085,41 +1085,42 @@ mvs_check_page (FILE *file, int code, int lit)
     {
       if (i370_enable_pic)
         {
-          /* Dump the literal pool. The .baligns are optional, since
-             ltorg will align to the size of the largest literal
-             (which is possibly 8 bytes) */
-          fprintf (assembler_source, ".data\n"
-                                     "\t.balign\t4\n"
-                                     ".LPOOL%d:\n"
-                                     "\t.ltorg\n"
-                                     "\t.drop\tr%d\n"
-                                     "\t.using\t.LPOOL%d,r%d\n"
-                                     ".previous\n",
-                   mvs_page_num, PIC_BASE_REGISTER,
-                   mvs_page_num+1, PIC_BASE_REGISTER);
+          /* Dump the literal pool, unless this was already
+             done earlier, at the start of a jump table.
+             The mvs_case_code holds the size of the jump table.  */
+          if (1) /* (mvs_case_code == 0) */
+            {
+              fprintf (assembler_source, ".data\n"
+                                         "\t.balign\t4\n"
+                                         ".LPOOL%d:\n"
+                                         "\t.ltorg\n"
+                                         "\t.drop\tr%d\n"
+                                         "\t.using\t.LPOOL%d,r%d\n"
+                                         ".previous\n",
+                       mvs_page_num, PIC_BASE_REGISTER,
+                       mvs_page_num+1, PIC_BASE_REGISTER);
 
+              /* we continue execution here ... */
+              fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+              fprintf (assembler_source, "\t.drop\tr%d\n",
+                                          BASE_REGISTER);
+              mvs_page_num++;
 
-          /* we continue execution here ... */
-          fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
-          fprintf (assembler_source, "\t.drop\tr%d\n",
-                                      BASE_REGISTER);
-          mvs_page_num++;
-
-          /* BASR puts the contents of the PSW into r3
-             that is, r3 will be loaded with the address of "."
-             The page origin is at 0(r13) XXX FIXME wait, the
-             prolog code actually sticks it into r4, so which is it?
-             The docs say we don't use r4, and its not marked call-used.
-             So I think pic is broken, at the moment, till we figure this out.
-             PIC_BASE_REGISTER is r12
-             We also put location of new literal pool into r12 */
-          fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
-          fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
-          fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
-          fprintf (assembler_source, "\tL\tr%d,0(,r%d)\n",
-                   PIC_BASE_REGISTER, FRAME_POINTER_REGNUM);
-          fprintf (assembler_source, "\tL\tr%d,%d(,r%d)\n", PIC_BASE_REGISTER,
-               (mvs_page_num - function_base_page) * 8 + 4, PIC_BASE_REGISTER);
+              /* BASR records the address of "."
+                 The page origin is at 0(r13)
+                 PIC_BASE_REGISTER is r12
+                 We also put location of new literal pool into r12. */
+              fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
+              fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+              fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+              fprintf (assembler_source, "\tL\tr%d,0(,r%d)\n",
+                       PIC_BASE_REGISTER, FRAME_POINTER_REGNUM);
+              fprintf (assembler_source, "\tL\tr%d,%d(,r%d)\n", PIC_BASE_REGISTER,
+                   (mvs_page_num - function_base_page) * 8 + 4, PIC_BASE_REGISTER);
+            }
+          else
+            {
+            }
         }
       else
         {
