@@ -1111,7 +1111,7 @@ mvs_check_page (FILE *file, int code, int lit)
           /* Dump the literal pool, unless this was already
              done earlier, at the start of a jump table.
              The mvs_case_code holds the size of the jump table.  */
-          if (1) /* (mvs_case_code == 0) */
+          if (mvs_case_code == 0)
             {
               fprintf (assembler_source, ".data\n"
                                          "\t.balign\t4\n"
@@ -1143,6 +1143,9 @@ mvs_check_page (FILE *file, int code, int lit)
             }
           else
             {
+              fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+              mvs_page_num++;
+              fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
             }
         }
       else

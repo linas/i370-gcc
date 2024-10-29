@@ -1765,8 +1765,12 @@ enum reg_class
    Great time to dump the literal pool. Start a counter,
    so that we might know how long the case table is.  */
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)  \
-  fprintf (FILE, "\t.ltorg\n");                          \
-  fprintf (FILE, "\t.balign 4\n");                       \
+  if (i370_enable_pic) {                                 \
+    fprintf (FILE, "# PIC. Do something here ???\n");    \
+  } else {                                               \
+    fprintf (FILE, "\t.ltorg\n");                        \
+    fprintf (FILE, "\t.balign 4\n");                     \
+  }                                                      \
   mvs_case_code = 0;                                     \
   fprintf (FILE, ".%s%d:\n", PREFIX, NUM)
 
