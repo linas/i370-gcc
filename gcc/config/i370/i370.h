@@ -1766,6 +1766,7 @@ enum reg_class
    we might know how long the case table is.  Only done for non-PIC
    code; the literal pool is in the data section for PIC code, and
    so nothing extra is neded here.  */
+#undef ASM_OUTPUT_CASE_LABEL
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)  \
   if (0 == i370_enable_pic) {                            \
     fprintf (FILE, "\t.ltorg\n");                        \
