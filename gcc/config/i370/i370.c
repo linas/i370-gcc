@@ -993,9 +993,9 @@ mvs_check_page (FILE *file, int code, int lit)
 
   if (mvs_page_code + code + mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
     {
-      /* no need to dump literals if we're at the end of
-         a case statement - they will already have been
-         dumped prior to the jump table generation. */
+      /* Dump the literal pool, unless this was already
+         done earlier, at the start of a jump table.
+         The mvs_case_code holds the size of the jump table.  */
       if (mvs_case_code == 0)
         {
           fprintf (assembler_source, "\tB\t@@PGE%d\n", mvs_page_num);
@@ -1031,16 +1031,15 @@ mvs_check_page (FILE *file, int code, int lit)
 
   if (mvs_page_code + code + mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
     {
-      /* no need to dump literals if we're at the end of
-         a case statement - they will already have been
-	 dumped prior to the jump table generation. */
+      /* Dump the literal pool, unless this was already
+         done earlier, at the start of a jump table.
+         The mvs_case_code holds the size of the jump table.  */
       if (mvs_case_code == 0)
         {
           fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
-	  fprintf (assembler_source, "\t.balign\t4\n");
-	  fprintf (assembler_source, "\t.ltorg\n");
-	}
-
+          fprintf (assembler_source, "\t.balign\t4\n");
+          fprintf (assembler_source, "\t.ltorg\n");
+        }
       fprintf (assembler_source, "\t.balign\t4\n");
       fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
       fprintf (assembler_source, "\t.drop\tr%d\n", BASE_REGISTER);
@@ -1108,25 +1107,38 @@ mvs_check_page (FILE *file, int code, int lit)
         }
       else
         {
-          /* Hop past the literal pool. */
-          fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
+          /* Dump the literal pool, unless this was already
+             done earlier, at the start of a jump table.
+             The mvs_case_code holds the size of the jump table.  */
+          if (mvs_case_code == 0)
+            {
+              /* Hop past the literal pool. */
+              fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
 
-          /* Dump the literal pool. The .ltorg automatically aligns
-           * to the size of the largest literal (which is possibly
-           * 8 bytes.) */
-          fprintf (assembler_source, "\t.ltorg\n");
-          fprintf (assembler_source, "\t.balign\t4\n");
+              /* Assembler automaticaly aligns ltorg. */
+              fprintf (assembler_source, "\t.ltorg\n");
+              fprintf (assembler_source, "\t.balign\t4\n");
 
-          /* Execution continues here. LPGE is the page end. */
-          fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
-          fprintf (assembler_source, "\t.drop\t%d\n", BASE_REGISTER);
-          mvs_page_num++;
+              /* Execution continues here. LPGE is the page end. */
+              fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+              fprintf (assembler_source, "\t.drop\t%d\n", BASE_REGISTER);
+              mvs_page_num++;
 
-          /* BASR puts the contents of the PSW into r3
-           * that is, r3 will be loaded with the address of "." */
-          fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
-          fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
-          fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+              /* BASR loads the base reg with addr of "." */
+              fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
+              fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+              fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+            }
+          else
+            {
+              /* LPGE marks the end of the previous page;
+                 LPG marks the start of the new page.
+                 The function epilog writes the LPG's into the
+                 page table at the end of the function. */
+              fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+              mvs_page_num++;
+              fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+            }
         }
       mvs_page_code = code;
       mvs_page_lit = lit;
