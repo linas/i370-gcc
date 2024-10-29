@@ -1104,11 +1104,12 @@ mvs_check_page (FILE *file, int code, int lit)
   if (file)
     assembler_source = file;
 
-  if (mvs_page_code + code + mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
+  if (i370_enable_pic)
     {
-      if (i370_enable_pic)
+      /* Dump the literal pool, only if we have a lot of literals.
+       * The PIC reg is r12, it points at the literal pool. */
+      if (mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
         {
-          /* Dump the literal pool. */
           fprintf (assembler_source, ".data\n"
                                      "\t.balign\t4\n"
                                      ".LPOOL%d:\n"
@@ -1119,25 +1120,41 @@ mvs_check_page (FILE *file, int code, int lit)
                    mvs_page_num, PIC_BASE_REGISTER,
                    mvs_page_num+1, PIC_BASE_REGISTER);
 
-          /* we continue execution here ... */
+          /* Reset the counter. */
+          mvs_page_lit = lit;
+        }
+
+      /* Reset the base reg (r3) if there's a lot of code on
+         the page.  The base reg is used for branch targets. */
+      if (mvs_page_code + code > MAX_MVS_PAGE_LENGTH)
+        {
+          /* LPGE is the end of the prior page.  */
           fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
           fprintf (assembler_source, "\t.drop\tr%d\n",
                                       BASE_REGISTER);
           mvs_page_num++;
 
           /* BASR records the address of "."
-             The page origin is at 0(r13)
-             PIC_BASE_REGISTER is r12
-             We also put location of new literal pool into r12. */
+             The page origin is at 0(r13)  */
           fprintf (assembler_source, "\tBASR\tr%d,0\n", BASE_REGISTER);
           fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
           fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+
+          /* Reload the pool reg too, but I'm not sure this is needed? */
           fprintf (assembler_source, "\tL\tr%d,0(,r%d)\n",
                    PIC_BASE_REGISTER, FRAME_POINTER_REGNUM);
           fprintf (assembler_source, "\tL\tr%d,%d(,r%d)\n", PIC_BASE_REGISTER,
                (mvs_page_num - function_base_page) * 8 + 4, PIC_BASE_REGISTER);
+
+          /* Reset the counter. */
+          mvs_page_code = code;
+          return 1;
         }
-      else
+    }
+  else
+    {
+      /* We are here if not PIC */
+      if (mvs_page_code + code + mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
         {
           /* Dump the literal pool, unless this was already
              done earlier, at the start of a jump table.
@@ -1172,10 +1189,12 @@ mvs_check_page (FILE *file, int code, int lit)
               mvs_page_num++;
               fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
             }
+
+          /* Reset the counters. */
+          mvs_page_code = code;
+          mvs_page_lit = lit;
+          return 1;
         }
-      mvs_page_code = code;
-      mvs_page_lit = lit;
-      return 1;
     }
   mvs_page_code += code;
   mvs_page_lit += lit;
