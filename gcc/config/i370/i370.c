@@ -468,7 +468,7 @@ i370_branch_dest (rtx branch)
   dest_uid = INSN_UID (dest);
   dest_addr = INSN_ADDRESSES (dest_uid);
 
-  /* next, record the address of this insn as the true addr of first ref */
+  /* Next, record the address of this insn as the true addr of first ref. */
   {
      label_node_t *lp;
      rtx label = JUMP_LABEL (branch);
@@ -558,8 +558,8 @@ i370_label_scan (void)
        int here = INSN_ADDRESSES (INSN_UID (insn));
        enum rtx_code code = GET_CODE(insn);
 
-       /* ??? adjust for tables embedded in the .text section that
-        * the compiler didn't take into account */
+       /* Adjust for jumptables embedded in the .text section
+        * that the compiler didn't take into account. */
        here += tablejump_offset;
        INSN_ADDRESSES (INSN_UID (insn)) = here;
 
@@ -590,7 +590,10 @@ i370_label_scan (void)
 
            /* If there is no label for this jump, then this
               had better be a ADDR_VEC or an ADDR_DIFF_VEC
-              and there had better be a vector of labels.  */
+              and there had better be a vector of labels.
+              This vector holds a jump table. Nothing will
+              branch into this table, so we on't need to
+              record labels that occur here.  */
            if (!label)
              {
                int j;
@@ -598,24 +601,31 @@ i370_label_scan (void)
                if (ADDR_VEC == GET_CODE(body))
                  {
                     int veclen = XVECLEN (body, 0);
+                    tablejump_offset += 4 * veclen;
+#ifdef RECORD_REF
                     for (j=0; j < veclen; j++)
                       {
                          rtx lref = XVECEXP (body, 0, j);
                          if (LABEL_REF != GET_CODE (lref)) abort ();
                          label = XEXP (lref,0);
                          if (CODE_LABEL != GET_CODE (label)) abort ();
-                         tablejump_offset += 4;
                          here += 4;
                          I370_RECORD_LABEL_REF(label,here);
                       }
+#endif /* RECORD_REF */
                     /* Finished with the vector. Go do next insn. */
                     continue;
                  }
                else
                if (ADDR_DIFF_VEC == GET_CODE(body))
                  {
-                   /* PC-relative table jump. A typical example
-                    * of the generated code looks like this:
+                   /* Same as above, but a PC-relative table jump.
+                    * Note that -fpic generates these, instead of
+                    * the absolute tables (above). However, even
+                    * non-PIC code might have relative jumptales.
+                    *
+                    * A typical example of the generated code looks
+                    * like this:
                     *
                     *        L  r10,some index
                     *        L  r9,=A(.L259)
@@ -631,29 +641,25 @@ i370_label_scan (void)
                     *        .long .L252-.L259
                     *     .L252:
                     *
-                    * The above looks fine, even for huge tables.
-                    * The relative addrs will be 32-bit quantities,
-                    * they're constants that relocation shouldn't
-                    * touch. The BR will always go right, no matter
-                    * how many XVECLEN (body, 1) we happen to get.
-                    * We can do the I370_RECORD_LABEL_REF but it
-                    * changes nothing and can be safely ignored.
+                    * The .L259: is output by ASM_OUTPUT_CASE_LABEL
+                    * Each .long is output by ASM_OUTPUT_ADDR_DIFF_ELT
+                    * The tblend is output by ASM_OUTPUT_CASE_END
                     */
                     int veclen = XVECLEN (body, 1);
+                    tablejump_offset += 4 * veclen;
                     rtx lbase = XEXP (body, 0);
                     if (LABEL_REF != GET_CODE (lbase)) abort();
-#ifdef POINTLESS_WORK
+#ifdef RECORD_REF
                     for (j=0; j < veclen; j++)
                       {
                          rtx lref = XVECEXP (body, 1, j);
                          if (LABEL_REF != GET_CODE (lref)) abort ();
                          label = XEXP (lref,0);
                          if (CODE_LABEL != GET_CODE (label)) abort ();
-                         tablejump_offset += 4;
                          here += 4;
                          I370_RECORD_LABEL_REF(label,here);
                       }
-#endif /* POINTLESS_WORK */
+#endif /* RECORD_REF */
                     /* Finished with the vector. Go do next insn. */
                     continue;
                  }
