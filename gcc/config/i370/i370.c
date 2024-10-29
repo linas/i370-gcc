@@ -1446,8 +1446,7 @@ mvs_check_alias (const char *realname, char *aliasname)
 
 /* Check for non-standard calling conventions.
    NAME is the name of the current function.
-   The Linux/ELF target has no special calling conventions */
-
+   The Linux/ELF target has no special calling conventions.  */
 int
 mvs_function_check (const char *name ATTRIBUTE_UNUSED)
 {
@@ -3081,6 +3080,8 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   mvs_page_lit = 4;
   mvs_check_page (f, 0, 0);
   function_base_page = mvs_page_num;
+  just_referenced_page = -1;
+  mvs_need_base_reload = 0;
 
   /* Find all labels in this routine. */
   i370_label_scan ();
