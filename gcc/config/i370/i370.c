@@ -414,7 +414,7 @@ mvs_make_float (REAL_VALUE_TYPE r)
 /* ===================================================== */
 /* The following three routines are used to determine whether
    a branch target is on this page, or is a far jump.  We use
-   the "length" attr on an insn [(set_atter "length" "4")]
+   the "length" attr on an insn [(set_attr "length" "4")]
    to store the largest possible code length that insn
    could have.  This gives us a hint of the address of the
    branch destination, and from that, we can work out
@@ -628,6 +628,7 @@ i370_label_scan (void)
    However, the current situation is not any worse than it was
    last week, and so we punt for now.  */
 
+                    printf("Unimplemented jump. Bad code generated here.\n");
                     debug_rtx (insn);
                     for (j=0; j < XVECLEN (body, 0); j++)
                       {
@@ -649,6 +650,7 @@ i370_label_scan (void)
    off than yesterday.  */
 
                     /* print_rtl_single (stdout, insn); */
+                    printf("Unimplemented indeirect jump. Bad code generated here.\n");
                     debug_rtx (insn);
                     /* abort(); */
                     continue;
@@ -2017,6 +2019,7 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	    fprintf (fh, "'");
 /* XXX hack alert this gets gen'd in -fPIC code in relation to a tablejump */
 /* but its somehow fundamentally broken, I can't make any sense out of it */
+printf("Unimplemented crazy tablejump.\n");
 debug_rtx (XV);
 abort();
 	  }
