@@ -1768,7 +1768,7 @@ enum reg_class
   fprintf (FILE, "\t.ltorg\n");                          \
   fprintf (FILE, "\t.balign 4\n");                       \
   mvs_case_code = 0;                                     \
-  fprintf (FILE, "%s%d:\n", PREFIX, NUM)
+  fprintf (FILE, ".%s%d:\n", PREFIX, NUM)
 
 /* Called at the end of relative or absolute jump table.
    Record the size of the table, and start a new page, if needed.  */
