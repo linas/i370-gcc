@@ -79,7 +79,8 @@ label_node_t;
    record that */
 static int just_referenced_page = -1;
 
-/* Is 1 when a label has been generated and the base register must be reloaded.  */
+/* Non-zero when a branch target is on a different page than the
+   branch origin, and thus the base register must be (re)loaded.  */
 int mvs_need_base_reload = 0;
 
 /* Is 1 when an entry point is to be generated.  */
@@ -1123,18 +1124,16 @@ mvs_check_page (FILE *file, int code, int lit)
         }
       else
         {
-          /* hop past the literal pool */
+          /* Hop past the literal pool. */
           fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
 
-
-          /* dump the literal pool. The .baligns are optional, since
-           * ltorg will align to the size of the largest literal
-           * (which is possibly 8 bytes) */
-          fprintf (assembler_source, "\t.balign\t4\n");
-          fprintf (assembler_source, "\t.LTORG\n");
+          /* Dump the literal pool. The .ltorg automatically aligns
+           * to the size of the largest literal (which is possibly
+           * 8 bytes.) */
+          fprintf (assembler_source, "\t.ltorg\n");
           fprintf (assembler_source, "\t.balign\t4\n");
 
-          /* we continue execution here ... */
+          /* Execution continues here. LPGE is the page end. */
           fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
           fprintf (assembler_source, "\t.drop\t%d\n", BASE_REGISTER);
           mvs_page_num++;
