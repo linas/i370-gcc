@@ -884,11 +884,17 @@ mvs_add_label (int id)
      is very conservatively handled; we'll tend to have
      a good bit more reloads than actually needed.  Someday,
      we should tighten the estimates (which are driven by
-     the (set_att "length") insn attribute.
+     the (set_attr "length") insn attribute.)
 
      Currently, we estimate that number of page literals
      same as number of insns, which is a vast overestimate,
-     esp that the estimate of each insn size is its max size.  */
+     esp that the estimate of each insn size is its max size.
+
+     XXX FIXME. We also have mvs_check_page() which provides
+     a more accurate count than (set_attr "length") and so we
+     should probably be using that, and get rid of set_attr.
+     Right?
+  */
 
   /* if latest ref comes before label, we are clear */
   if (lp->label_last_ref < lp->label_addr) return;
