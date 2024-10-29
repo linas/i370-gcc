@@ -3142,10 +3142,10 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   mvs_free_label_list();
 }
 
+/* ELF needs nothing special for the file start. */
 static void
 i370_file_start ()
 {
-  /* fputs ("\tRMODE\tANY\n\tCSECT\n", asm_out_file); */
 }
 
 static void
@@ -3156,15 +3156,15 @@ i370_file_end (void)
      With this, the linker issues the warning
         "requires executable stack (because the .note.GNU-stack section is executable)"
      and then creates crazy overlapping sections when building the
-     kernel. So I don't understand the correct fix. We don't want or
-     need an executale stack.  */
+     kernel. So I don't understand the correct fix. FWIW, the current
+     signal return trampoline is placed on the stack (as part of the
+     signal frame) and so the stack does need to be executable.  */
 
 #if 0
   unsigned int flags = SECTION_DEBUG;
   named_section_flags (".note.GNU-stack", flags);
 #endif
 
-  /* fputs ("\tEND\n", asm_out_file); */
 }
 #endif /* TARGET_ELF_ABI */
 
