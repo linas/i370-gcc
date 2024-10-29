@@ -1001,16 +1001,24 @@ mvs_check_page (FILE *file, int code, int lit)
           fprintf (assembler_source, "\tB\t@@PGE%d\n", mvs_page_num);
           fprintf (assembler_source, "\tDS\t0F\n");
           fprintf (assembler_source, "\tLTORG\n");
+
+          fprintf (assembler_source, "\tDS\t0F\n");
+          fprintf (assembler_source, "@@PGE%d\tEQU\t*\n", mvs_page_num);
+          fprintf (assembler_source, "\tDROP\t%d\n", BASE_REGISTER);
+          mvs_page_num++;
+          /* Safe to use BASR not BALR, since we are
+             not switching addressing mode here.  */
+          fprintf (assembler_source, "\tBASR\t%d,0\n", BASE_REGISTER);
+          fprintf (assembler_source, "\tUSING\t*,%d\n", BASE_REGISTER);
+          fprintf (assembler_source, "@@PG%d\tEQU\t*\n", mvs_page_num);
         }
-      fprintf (assembler_source, "\tDS\t0F\n");
-      fprintf (assembler_source, "@@PGE%d\tEQU\t*\n", mvs_page_num);
-      fprintf (assembler_source, "\tDROP\t%d\n", BASE_REGISTER);
-      mvs_page_num++;
-      /* Safe to use BASR not BALR, since we are
-       * not switching addressing mode here ...  */
-      fprintf (assembler_source, "\tBASR\t%d,0\n", BASE_REGISTER);
-      fprintf (assembler_source, "\tUSING\t*,%d\n", BASE_REGISTER);
-      fprintf (assembler_source, "@@PG%d\tEQU\t*\n", mvs_page_num);
+      else
+        {
+          fprintf (assembler_source, "\tDS\t0F\n");
+          fprintf (assembler_source, "@@PGE%d\tEQU\t*\n", mvs_page_num);
+          mvs_page_num++;
+          fprintf (assembler_source, "@@PG%d\tEQU\t*\n", mvs_page_num);
+        }
       mvs_page_code = code;
       mvs_page_lit = lit;
       return 1;
@@ -1039,14 +1047,22 @@ mvs_check_page (FILE *file, int code, int lit)
           fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
           fprintf (assembler_source, "\t.balign\t4\n");
           fprintf (assembler_source, "\t.ltorg\n");
+
+          fprintf (assembler_source, "\t.balign\t4\n");
+          fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+          fprintf (assembler_source, "\t.drop\tr%d\n", BASE_REGISTER);
+          mvs_page_num++;
+          fprintf (assembler_source, "\tBALR\tr%d,0\n", BASE_REGISTER);
+          fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
+          fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
         }
-      fprintf (assembler_source, "\t.balign\t4\n");
-      fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
-      fprintf (assembler_source, "\t.drop\tr%d\n", BASE_REGISTER);
-      mvs_page_num++;
-      fprintf (assembler_source, "\tBALR\tr%d,0\n", BASE_REGISTER);
-      fprintf (assembler_source, "\t.using\t.,r%d\n", BASE_REGISTER);
-      fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+      else
+        {
+          fprintf (assembler_source, "\t.balign\t4\n");
+          fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+          mvs_page_num++;
+          fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+        }
       mvs_page_code = code;
       mvs_page_lit = lit;
       return 1;
@@ -1117,9 +1133,9 @@ mvs_check_page (FILE *file, int code, int lit)
 
               /* Assembler automaticaly aligns ltorg. */
               fprintf (assembler_source, "\t.ltorg\n");
-              fprintf (assembler_source, "\t.balign\t4\n");
 
               /* Execution continues here. LPGE is the page end. */
+              fprintf (assembler_source, "\t.balign\t4\n");
               fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
               fprintf (assembler_source, "\t.drop\t%d\n", BASE_REGISTER);
               mvs_page_num++;
@@ -1135,6 +1151,7 @@ mvs_check_page (FILE *file, int code, int lit)
                  LPG marks the start of the new page.
                  The function epilog writes the LPG's into the
                  page table at the end of the function. */
+              fprintf (assembler_source, "\t.balign\t4\n");
               fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
               mvs_page_num++;
               fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
