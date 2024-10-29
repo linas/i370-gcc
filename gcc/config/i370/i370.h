@@ -48,7 +48,7 @@ extern int target_flags;
 
 /* The sizes of the code and literals on the current page.  */
 
-extern int mvs_page_code, mvs_page_lit;
+extern int mvs_page_code, mvs_page_lit, mvs_case_code;
 
 /* The current page number and the base page number for the function.  */
 
@@ -1468,6 +1468,7 @@ enum reg_class
 /* This is how to output an element of a case-vector that is relative.  */
 
 #define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) 		\
+  mvs_case_code += 4;							\
   fprintf (FILE, "\tDC\tA(@@L%d-@@L%d)\n", VALUE, REL)
 
 /* This is how to output an insn to push a register on the stack.
@@ -1741,7 +1742,6 @@ enum reg_class
 
 /* Output assembler code to FILE to increment profiler label # LABELNO
    for profiling a function entry.  */
-/* Make it a no-op for now, so we can at least compile glibc */
 #define FUNCTION_PROFILER(FILE, LABELNO)  {				\
   mvs_check_page (FILE, 24, 4);						\
      fprintf (FILE, "\tSTM\tr1,r2,%d(sp)\n", STACK_POINTER_OFFSET-8);	\
@@ -1761,21 +1761,30 @@ enum reg_class
 
 /* #define ASM_OUTPUT_LABELREF(FILE, NAME) */	/* use gas -- defaults.h */
 
-/* let config/svr4.h define this ...
- * XXX FIXME: what if it branches off the page!??
- * See i370_internal_label
- *  #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)
- *    fprintf (FILE, "%s%d:\n", PREFIX, NUM)
- */
+/* Called at the start of relative or absolute jump table.
+   Great time to dump the literal pool. Start a counter,
+   so that we might know how long the case table is.  */
+#define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)  \
+  fprintf (FILE, "\t.ltorg\n");                          \
+  fprintf (FILE, "\t.balign 4\n");                       \
+  mvs_case_code = 0;                                     \
+  fprintf (FILE, "%s%d:\n", PREFIX, NUM)
 
-/* This is how to output an element of a case-vector that is absolute.  */
-#define ASM_OUTPUT_ADDR_VEC_ELT(FILE, VALUE)  				\
-  mvs_check_page (FILE, 4, 0);						\
+/* Called at the end of relative or absolute jump table.
+   Record the size of the table, and start a new page, if needed.  */
+#define ASM_OUTPUT_CASE_END(FILE, NUM, TABLE)            \
+  mvs_page_code += mvs_case_code;                        \
+  mvs_check_page (FILE, 0, 0);                           \
+  mvs_case_code = 0
+
+/* Output an element of a case-vector that is absolute.  */
+#define ASM_OUTPUT_ADDR_VEC_ELT(FILE, VALUE)             \
+  mvs_case_code += 4;                                    \
   fprintf (FILE, "\t.long\t.L%d\n", VALUE)
 
-/* This is how to output an element of a case-vector that is relative.  */
-#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) 		\
-  mvs_check_page (FILE, 4, 0);						\
+/* Output an element of a case-vector that is relative.  */
+#define ASM_OUTPUT_ADDR_DIFF_ELT(FILE, BODY, VALUE, REL) \
+  mvs_case_code += 4;                                    \
   fprintf (FILE, "\t.long\t.L%d-.L%d\n", VALUE, REL)
 
 /* Right now, PUSH & POP are used only when profiling is enabled,

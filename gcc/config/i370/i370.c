@@ -608,14 +608,6 @@ i370_label_scan (void)
                          here += 4;
                          I370_RECORD_LABEL_REF(label,here);
                       }
-                    mvs_check_page(0, 4*veclen, 0);
-
-                    /* Guaranteed screwup with current implementation.
-                       Easy to fix; just don't allow mvs_check_page()
-                       to emit anything further, until all veclen
-                       labels have been written.  Rainy day fix. */
-                    if (MAX_MVS_PAGE_LENGTH < 4*veclen) abort();
-
                     /* Finished with the vector. Go do next insn. */
                     continue;
                  }
@@ -662,14 +654,6 @@ i370_label_scan (void)
                          I370_RECORD_LABEL_REF(label,here);
                       }
 #endif /* POINTLESS_WORK */
-                    mvs_check_page(0, 4*veclen, 0);
-
-                    /* Guaranteed screwup with current implementation.
-                       Easy to fix; just don't allow mvs_check_page()
-                       to emit anything further, until all veclen
-                       labels have been written.  Rainy day fix. */
-                    if (MAX_MVS_PAGE_LENGTH < 4*veclen) abort();
-
                     /* Finished with the vector. Go do next insn. */
                     continue;
                  }
