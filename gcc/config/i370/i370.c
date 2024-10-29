@@ -572,8 +572,8 @@ i370_label_scan (void)
            lp -> label_addr = here;
 #if 0
            /* Supposedly, labels are supposed to have circular
-              lists of label-refs that reference them,
-              setup in flow.c, but this does not appear to be the case.  */
+              lists of label-refs that reference them, set up in
+              flow.c, but this does not appear to be the case.  */
            rtx labelref = LABEL_REFS (insn);
            rtx ref = labelref;
            do
@@ -857,6 +857,17 @@ mvs_get_label (int id)
   return lp;
 }
 
+/* Called when a label is issued to the assembly file.
+   The goal here is to determine if there are any long jumps to this
+   label. If there are, then we need to reload the base register.
+   If all jumps to here are short, then this is not needed.
+
+   XXX FIXME. This code has it's heart inthe right place, but its
+   not really correct. As currently written, it makes a worst-case
+   assumption that any labels at all, that are not on the first
+   function page will need a base register reload. This is far too
+   pessimistic. But it does work. So leave it for now.
+ */
 void
 mvs_add_label (int id)
 {
@@ -866,9 +877,15 @@ mvs_add_label (int id)
   lp = mvs_get_label (id);
   lp->label_page = mvs_page_num;
 
-/* Note that without this, some case statements are
-     not generating correct code, e.g. case '{' in
-     do_spec_1 in gcc.c */
+  /* XXX FIXME This is a worst-case assumption, that any label not
+     on the first function page will require a reload. This pretty
+     much clobbers all the other calculations that are made further
+     below, and this is because those calculations were... wrong.
+     So this is very conservative and guaranteed to work, but is
+     not going to be efficient, in general. It might not matter
+     very much, since most "normal" functions fit on one page,
+     anyway.
+  */
 #if 1
   if (mvs_page_num != function_base_page)
   {
