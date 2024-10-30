@@ -1045,8 +1045,11 @@ mvs_check_page (FILE *file, int code, int lit)
         {
           fprintf (assembler_source, "\tDS\t0F\n");
           fprintf (assembler_source, "@@PGE%d\tEQU\t*\n", mvs_page_num);
+          fprintf (assembler_source, "\tDROP\t%d\n", BASE_REGISTER);
           mvs_page_num++;
           fprintf (assembler_source, "@@PG%d\tEQU\t*\n", mvs_page_num);
+          fprintf (assembler_source, "\tUSING\t@@PG%d,%d\n",
+                                     mvs_page_num, BASE_REGISTER);
         }
       mvs_page_code = code;
       mvs_page_lit = lit;
@@ -1089,8 +1092,11 @@ mvs_check_page (FILE *file, int code, int lit)
         {
           fprintf (assembler_source, "\t.balign\t4\n");
           fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+          fprintf (assembler_source, "\t.drop\tr%d\n", BASE_REGISTER);
           mvs_page_num++;
           fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+          fprintf (assembler_source, "\t.using\t.LPG%d,r%d\n",
+                                     mvs_page_num, BASE_REGISTER);
         }
       mvs_page_code = code;
       mvs_page_lit = lit;
@@ -1194,8 +1200,11 @@ mvs_check_page (FILE *file, int code, int lit)
                  page table at the end of the function. */
               fprintf (assembler_source, "\t.balign\t4\n");
               fprintf (assembler_source, ".LPGE%d:\n", mvs_page_num);
+              fprintf (assembler_source, "\t.drop\t%d\n", BASE_REGISTER);
               mvs_page_num++;
               fprintf (assembler_source, ".LPG%d:\n", mvs_page_num);
+              fprintf (assembler_source, "\t.using\t.LPG%d,r%d\n",
+                                         mvs_page_num, BASE_REGISTER);
             }
 
           /* Reset the counters. */
