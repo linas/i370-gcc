@@ -892,8 +892,13 @@ mvs_get_label (int id)
    The goal here is to determine if there are any long jumps,
    foreward or backward, to this label. If there are, then we'll
    be arriving at this label with some junk value in the base
-   register. The next insn to touch a literla had better reload the
+   register. The next insn to touch a literal had better reload the
    base reg before touching that literal.
+
+   The estimates are driven from INSN_ADDRESSES() which are determined
+   from [(set_attr "length" "NN")] in i370.md These are over-estimates
+   of the insn size, and so distances are over-estimated. That's OK,
+   just not optimal. mvs_check_page() provides a more accurate value.
 
    XXX FIXME. This code has it's heart in the right place, but its
    not really correct. As currently written, it makes a worst-case
@@ -939,31 +944,18 @@ mvs_add_label (int id)
       return;
     }
 
-  /* Hmm.  Try to see if the estimated address of the last
-     label_ref is on the current page.  If it is, then we
-     don't need a base reg reload.  Note that this estimate
-     is very conservatively handled; we'll tend to have
-     a good bit more reloads than actually needed.  Someday,
-     we should tighten the estimates (which are driven by
-     the (set_attr "length") insn attribute.)
-
-     Currently, we estimate that number of page literals
-     same as number of insns, which is a vast overestimate,
-     esp that the estimate of each insn size is its max size.
-
-     XXX FIXME. We also have mvs_check_page() which provides
-     a more accurate count than (set_attr "length") and so we
-     should probably be using that, and get rid of set_attr.
-     Right?
-  */
-
-  /* If latest ref comes before the label itself, we are clear */
+  /* If we are here, then either we arrive here from a short distance
+     in the past, and/or we arrive here from some jumper still ahead.
+     If the latest ref comes before the label itself, then there are
+     no jumps from later on, and so we're good. No reload needed. */
   if (lp->label_last_ref < lp->label_addr) return;
 
   /* If we are here, then some later insn branches backwards to the
      label here.  Is that later insn on a different page from the
-     label here? If so, then the very next reference to a literal
-     must be preceeded by a reload of the base reg. */
+     label here? We don't know yet, because we haven't assembled that
+     far, yet. So instead we guess as to how far away it is. Attempt
+     a conservative guess, making worst-case estimates for the distances
+     involved. If it seems to be on another page, then reload.  */
   back_distance = lp->label_last_ref - lp->label_addr;
 
   if (mvs_page_code + 2 * back_distance + mvs_page_lit < MAX_MVS_PAGE_LENGTH)
