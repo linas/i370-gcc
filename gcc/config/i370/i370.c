@@ -561,8 +561,25 @@ i370_label_scan (void)
 
    for (insn = get_insns(); insn; insn = NEXT_INSN(insn))
      {
-       int here = INSN_ADDRESSES (INSN_UID (insn));
-       enum rtx_code code = GET_CODE(insn);
+       enum rtx_code code;
+       int here;
+       int uid = INSN_UID (insn);
+
+       /* Try to avoid crash due to general bogosity with instruction
+        * lengths. The INSN_ADDRESSES(uid) is computed from the
+        * [(set_attr "length" "nn")]  in i370.md which gives an upper
+        * bound for the instruction length. mvs_check_page() is more
+        * accurate. Thus, the estimate here can go beyond the end-of-file
+        * and so INSN_ADDRESSES(uid) will segfault. Alas. This is a bug.
+        * See `ifdef HAVE_ATTR_length` in `final()` in `final.c`.
+        * "Doctor, it hurts when I do this." "Well, don't do that!"
+        */
+       if (INSN_ADDRESSES_SIZE() < uid) break;
+
+       code = GET_CODE(insn);
+       if (code == NOTE) continue;
+
+       here = INSN_ADDRESSES (uid);
 
        /* Adjust for jumptables embedded in the .text section
         * that the compiler didn't take into account. */
