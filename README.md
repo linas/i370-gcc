@@ -113,6 +113,7 @@ CC_FOR_BUILD="gcc -I/usr/include -I/usr/include/x86_64-linux-gnu/
 ../configure --host=i370-ibm-linux \
              --target=i370-ibm-linux
              --build=x86_64-unknown-linux-gnu \
+             --prefix=$SYSROOT/usr \
              --enable-languages="c" --disable-threads
 ```
 The two `sudo cp` put the i370 C library and header files where they
