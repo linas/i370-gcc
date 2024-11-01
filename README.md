@@ -93,52 +93,34 @@ i370, then the following should be enough:
 mkdir build-libc
 cd build-libc
 export SYSROOT=/usr/local/i370-linux-uclibc
-../configure --target=i370-ibm-linux --host=i370-ibm-linux --enable-languages="c" --disable-threads --prefix=$SYSROOT/usr
+../configure --target=i370-ibm-linux --host=i370-ibm-linux --build=x86_64-unknown-linux-gnu --enable-languages="c" --disable-threads --prefix=$SYSROOT/usr
 make
 ```
 Here, `SYSROOT` provides the location of the C Library to link to.
 Change as appropriate.
 
-XXX Except the above does not actually work. I can't figure out how to
-make it work. It keeps using the wrong compiler, or uses the wrong
-include files, or uses the wrong assembler. Tried to hack around this
-with the `xxbuild.sh` script, and it almost works. But not quite.
+[Cross-compiling reference](https://gcc.gnu.org/onlinedocs/gccint/Configure-Terms.html)
 
-The trainwreck involves `genmodes`. This needs to execute on the
-builder (lets assume x86_64, for example). And so it needs a version of
-libiberty for x86_64, too. Great. The `genmodes` tool generates the
-actual compiler from the machine description (in `i370.md`). Great!
-The result should then be built with `i370-ibm-linux-gcc`, but it
-isn't: the x86 version of `gcc` gets used instead. Argh! I can't get
-it to switch over.
+The following seems to (almost) work:
+```
+cd /usr/local
+sudo cp -pr i370-linux-uclibc/usr/include i370-ibm-linux
+sudo cp -pr i370-linux-uclibc/usr/lib/* i370-ibm-linux/lib
 
-The above does result in a cross-compiler `xgcc` being built. Fine.
-It should then go back and rebuild the compiler, but this time using
-`xgcc`. It would neeed to also use the cross-include files, and the
-cross-C-library.  But it doesn't; it gets tangled up. For example,
-the below looks promising, but fails quite soon:
+CC=i370-ibm-linux-gcc \
+CC_FOR_BUILD="gcc -I/usr/include -I/usr/include/x86_64-linux-gnu/
+-D__x86_64__ -U__ILP32__" \
+../configure --host=i370-ibm-linux \
+             --target=i370-ibm-linux
+             --build=x86_64-unknown-linux-gnu \
+             --enable-languages="c" --disable-threads
 ```
-CC=gcc ../configure --target=i370-ibm-linux --build=i370-ibm-linux --enable-languages="c" --disable-threads --x-includes=$SYSROOT/usr/include --x-libraries=$SYSROOT/usr/lib
-```
-And of course, this doesn't work:
-```
-CPPFLAGS="-I$SYSROOT/usr/include" CFLAGS="$CPPFLAGS -B$SYSROOT/usr/lib -L$SYSROOT/usr/lib" $CFG --target=i370-ibm-linux --host=i370-ibm-linux --enable-languages="c" --disable-threads --prefix=$SYSROOT/usr
-```
-The hackery in `xxbuild.sh` seems promising, until one realizes that
-the resulting `genmodes` is for i370, and can't be run on the builder.
-I give up.
-
-FYI, one confusing bug is worth mentioning:
-* The double-crossed binutils, installs a file
-  `$SYSROOT/usr/include/ansidecl.h` which clashes with the libiberty
-  `ansidecl.h` and then (potentialy) screws up the build.
-
-That's a typical example of the wrong headers getting used at the wrong
-time. It's quite hard to debug.
+The two `sudo cp` put the i370 C library and header files where they
+can be found. The C library must have been built earlier.
 
 How to get a C library is explained at
 [github.com/linas/i370-bigfoot](https://github.com/linas/i370-bigfoot).
-That demonstrates a working uClibc and also a working Busybox. It's
+That demonstrates a working uClibc and also a working BusyBox. It's
 possible that PDPCLIB might work, but that remains unclear.
 
 
