@@ -888,11 +888,14 @@ mvs_get_label (int id)
 }
 
 /* Called when a label is issued to the assembly file.
-   The goal here is to determine if there are any long jumps to this
-   label. If there are, then we need to reload the base register.
-   If all jumps to here are short, then this is not needed.
 
-   XXX FIXME. This code has it's heart inthe right place, but its
+   The goal here is to determine if there are any long jumps,
+   foreward or backward, to this label. If there are, then we'll
+   be arriving at this label with some junk value in the base
+   register. The next insn to touch a literla had better reload the
+   base reg before touching that literal.
+
+   XXX FIXME. This code has it's heart in the right place, but its
    not really correct. As currently written, it makes a worst-case
    assumption that any labels at all, that are not on the first
    function page will need a base register reload. This is far too
@@ -902,7 +905,7 @@ void
 mvs_add_label (int id)
 {
   label_node_t *lp;
-  int fwd_distance;
+  int back_distance;
 
   lp = mvs_get_label (id);
   lp->label_page = mvs_page_num;
@@ -924,8 +927,10 @@ mvs_add_label (int id)
   }
 #endif
 
-  /* OK, we just saw the label.  Determine if this label
-   * needs a reload of the base register. */
+  /* OK, we just saw the label. The lp->first_ref_page will be
+     set, if the jumper has already been seen, i.e. if it came
+     before this label. If so, then if it came from far away,
+     a reload of the base register is definitely needed. */
   if ((-1 != lp->first_ref_page) &&
       (lp->first_ref_page != mvs_page_num))
     {
@@ -952,12 +957,16 @@ mvs_add_label (int id)
      Right?
   */
 
-  /* if latest ref comes before label, we are clear */
+  /* If latest ref comes before the label itself, we are clear */
   if (lp->label_last_ref < lp->label_addr) return;
 
-  fwd_distance = lp->label_last_ref - lp->label_addr;
+  /* If we are here, then some later insn branches backwards to the
+     label here.  Is that later insn on a different page from the
+     label here? If so, then the very next reference to a literal
+     must be preceeded by a reload of the base reg. */
+  back_distance = lp->label_last_ref - lp->label_addr;
 
-  if (mvs_page_code + 2 * fwd_distance + mvs_page_lit < MAX_MVS_PAGE_LENGTH)
+  if (mvs_page_code + 2 * back_distance + mvs_page_lit < MAX_MVS_PAGE_LENGTH)
       return;
 
   mvs_need_base_reload ++;
