@@ -532,16 +532,19 @@ i370_short_branch (rtx insn)
   return 0;
 }
 
-/* The i370_label_scan() routine is supposed to loop over
-   all labels and label references in a compilation unit,
-   and determine whether all label refs appear on the same
-   code page as the label. If they do, then we can avoid
-   a reload of the base register for that label.
+/* The i370_label_scan() routine loops over all labels and label
+   references in a compilation unit, and determines whether all
+   label refs appear on the same code page as the label. If they do,
+   then a reload of the base register can be avoided for that label.
 
-   Note that the instruction addresses used here are only
-   approximate, and make the sizes of the jumps appear
-   farther apart then they will actually be.  This makes
-   this code far more conservative than it needs to be.
+   The instruction addresses used here are approximate, and make the
+   sizes of the jumps appear farther apart then they will actually be.
+   This makes this code far more conservative than it needs to be.
+
+   The INSN_ADDRESSES(insn_uid) are computed from the length attribute
+   [(set_attr "length" "nn")] used in i370.md. This gives an upper
+   bound for the instruction length. The mvs_check_page() gives a more
+   accurate size, but isn't hooked up to the attribute.
  */
 
 #define I370_RECORD_LABEL_REF(label,addr) {				\
@@ -558,6 +561,7 @@ i370_label_scan (void)
    rtx insn;
    label_node_t *lp;
    int tablejump_offset = 0;
+   int last_addr = 0;
 
    for (insn = get_insns(); insn; insn = NEXT_INSN(insn))
      {
@@ -565,26 +569,27 @@ i370_label_scan (void)
        int here;
        int uid = INSN_UID (insn);
 
-       /* Try to avoid crash due to general bogosity with instruction
-        * lengths. The INSN_ADDRESSES(uid) is computed from the
-        * [(set_attr "length" "nn")]  in i370.md which gives an upper
-        * bound for the instruction length. mvs_check_page() is more
-        * accurate. Thus, the estimate here can go beyond the end-of-file
-        * and so INSN_ADDRESSES(uid) will segfault. Alas. This is a bug.
-        * See `ifdef HAVE_ATTR_length` in `final()` in `final.c`.
-        * "Doctor, it hurts when I do this." "Well, don't do that!"
+       /* Try to avoid crash in `final()` in `final.c` involving uid's
+          that go past the `insn_addresses_` array size. This overrun
+          is presumably a bug somewhere, but where? The work-around is
+          to ... just increase the size of the array.
+
+          See `ifdef HAVE_ATTR_length` in `final()` in `final.c`.
+          "Doctor, it hurts when I do this." "Well, don't do that!"
         */
-       if (INSN_ADDRESSES_SIZE() < uid) break;
+       if (INSN_ADDRESSES_SIZE() <= uid)
+         INSN_ADDRESSES_NEW (insn, last_addr + get_attr_length(insn));
 
        code = GET_CODE(insn);
-       if (code == NOTE) continue;
+       if (NOTE == code) continue;
 
        here = INSN_ADDRESSES (uid);
 
        /* Adjust for jumptables embedded in the .text section
         * that the compiler didn't take into account. */
        here += tablejump_offset;
-       INSN_ADDRESSES (INSN_UID (insn)) = here;
+       INSN_ADDRESSES (uid) = here;
+       last_addr = here;
 
        /* check to see if this insn is a label ...  */
        if (CODE_LABEL == code)
