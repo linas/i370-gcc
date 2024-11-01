@@ -57,7 +57,7 @@ extern FILE *asm_out_file;
       on the various pages in the current routine.
    The label_id is the numeric ID of the label,
    The label_page is the page on which it actually appears,
-   The first_ref_page is the page on which the true first ref appears.
+   The first_ref_page is the page on which the first ref appears.
    The label_addr is an estimate of its location in the current routine,
    The label_first & last_ref are estimates of where the earliest and
       latest references to this label occur.  */
@@ -474,7 +474,7 @@ i370_branch_dest (rtx branch)
   dest_uid = INSN_UID (dest);
   dest_addr = INSN_ADDRESSES (dest_uid);
 
-  /* Next, record the address of this insn as the true addr of first ref. */
+  /* Next, record the address of this insn as the addr of first ref. */
   {
      label_node_t *lp;
      rtx label = JUMP_LABEL (branch);
@@ -498,7 +498,7 @@ i370_branch_length (rtx insn)
   return (there - here);
 }
 
-
+/* Return 1 if this is a short branch, else return 0. */
 int
 i370_short_branch (rtx insn)
 {
@@ -522,13 +522,15 @@ i370_short_branch (rtx insn)
     }
   else
     {
-      /* avoid bumping into lit pool; use 2x to estimate max possible lits */
+      /* Avoid bumping into lit pool. We don't yet know the final size
+         of the lit pool, just what it might be now.  Assume a branch
+         length twice as long and maybe that will be OK. */
       base_offset *= 2;
       base_offset += mvs_page_code + mvs_page_lit;
     }
 
   /* Make a conservative estimate of room left on page. */
-  if ((MAX_MVS_PAGE_LENGTH >base_offset) && ( 0 < base_offset)) return 1;
+  if ((MAX_MVS_PAGE_LENGTH > base_offset) && (0 < base_offset)) return 1;
   return 0;
 }
 
@@ -923,7 +925,7 @@ mvs_add_label (int id)
 #endif
 
   /* OK, we just saw the label.  Determine if this label
-   * needs a reload of the base register */
+   * needs a reload of the base register. */
   if ((-1 != lp->first_ref_page) &&
       (lp->first_ref_page != mvs_page_num))
     {
