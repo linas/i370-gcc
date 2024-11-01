@@ -26,6 +26,13 @@
 #include "hosthooks.h"
 #include "hosthooks-def.h"
 
+/* SSIZE_MAX should have been found in <bits/posix1_lim.h> but
+   apparently this header is not always gettting included for some
+   reason. e.g. in uClibc. So work around it. */
+#ifndef SSIZE_MAX
+#define SSIZE_MAX LONG_MAX
+#endif
+
 
 /* Linux has a feature called exec-shield-randomize that perturbs the
    address of non-fixed mapped segments by a (relatively) small amount.
