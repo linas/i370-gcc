@@ -88,7 +88,7 @@ The configuration for the different OS targets is defined in the
 ## Cross-host builds
 Cross-host builds are a bit tricky. The goal here is to build a version
 of gcc that will run on the i370. Assuming you have a C Library for the
-i370, then the following should be enough:
+i370, then the following should have been enough:
 ```
 mkdir build-libc
 cd build-libc
@@ -99,9 +99,9 @@ make
 Here, `SYSROOT` provides the location of the C Library to link to.
 Change as appropriate.
 
-[Cross-compiling reference](https://gcc.gnu.org/onlinedocs/gccint/Configure-Terms.html)
+FYI: See the [cross-compiling reference](https://gcc.gnu.org/onlinedocs/gccint/Configure-Terms.html).
 
-The following seems to (almost) work:
+The following seems to work:
 ```
 cd /usr/local
 sudo cp -pr i370-linux-uclibc/usr/include i370-ibm-linux
@@ -116,7 +116,10 @@ CC_FOR_BUILD="gcc -I/usr/include -I/usr/include/x86_64-linux-gnu/
              --enable-languages="c" --disable-threads
 ```
 The two `sudo cp` put the i370 C library and header files where they
-can be found. The C library must have been built earlier.
+can be found. The C library must have been built and installed sometime
+earlier. The `CC_FOR_BUILD` is needed because the build gcc seems to
+have trouble finding header files, and then there's some weirdness
+with `<gnu/stubs.h>` that has to be hacked around. At least for me.
 
 How to get a C library is explained at
 [github.com/linas/i370-bigfoot](https://github.com/linas/i370-bigfoot).
