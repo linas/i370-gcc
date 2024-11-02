@@ -914,12 +914,6 @@ mvs_get_label (int id)
    from [(set_attr "length" "NN")] in i370.md These are over-estimates
    of the insn size, and so distances are over-estimated. That's OK,
    just not optimal. mvs_check_page() provides a more accurate value.
-
-   XXX FIXME. This code has it's heart in the right place, but its
-   not really correct. As currently written, it makes a worst-case
-   assumption that any labels at all, that are not on the first
-   function page will need a base register reload. This is far too
-   pessimistic. But it does work. So leave it for now.
  */
 void
 mvs_add_label (int id)
@@ -930,16 +924,8 @@ mvs_add_label (int id)
   lp = mvs_get_label (id);
   lp->label_page = mvs_page_num;
 
-  /* XXX FIXME This is a worst-case assumption, that any label not
-     on the first function page will require a reload. This pretty
-     much clobbers all the other calculations that are made further
-     below, and this is because those calculations were... wrong.
-     So this is very conservative and guaranteed to work, but is
-     not going to be efficient, in general. It might not matter
-     very much, since most "normal" functions fit on one page,
-     anyway.
-  */
-#if 1
+#if 0
+  /* Worst-case assumption. Should not be needed. Here for debugging. */
   if (mvs_page_num != function_base_page)
   {
       mvs_need_base_reload ++;
