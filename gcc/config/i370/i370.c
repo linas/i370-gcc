@@ -75,7 +75,6 @@ typedef struct label_node
     int label_last_ref;
 
     bool ref_jump;
-    bool ref_indirect;
   }
 label_node_t;
 
@@ -708,21 +707,18 @@ i370_label_scan (void)
                  }
                else
                  {
-/* XXX hack alert.
-   Compiling the exception handling (L_eh) in libgcc2.a will trip
-   up right here, with something that looks like
-   (set (pc) (mem:SI (plus:SI (reg/v:SI 1 r1) (const_int 4))))
-      {indirect_jump}
-   I'm not sure of what leads up to this, but it looks like
-   the makings of a long jump which will surely get us into trouble
-   because the base & page registers don't get reloaded.  For now
-   I'm not sure of what to do ... again we punt ... we are not worse
-   off than yesterday.  */
-
-                    /* print_rtl_single (stdout, insn); */
-                    printf("Unimplemented indirect jump. Bad code generated here.\n");
-                    debug_rtx (insn);
-                    /* abort(); */
+                   /* Assume indirect jump. Usually the result of
+                      unwinding some exception. Examples include
+                      simple jumps:
+                          (set (pc) (reg:SI 9 r9)) {indirect_jump}
+                      and complicated ones:
+                          (set (pc) (mem:SI
+                              (plus:SI (reg/v:SI 1 r1) (const_int 4))))
+                      The location being branched to will clearly
+                      require a base register reload. But we don't know
+                      where that is, so we can't tell it. The unwind
+                      code will have to be smart enough to do this
+                      correctly; we cannot handle it here. Do nothing. */
                     continue;
                  }
             }
@@ -897,7 +893,6 @@ mvs_get_label (int id)
   lp->label_addr = -1;
   lp->first_ref_page = -1;
   lp->ref_jump = 0;
-  lp->ref_indirect = 0;
   label_anchor = lp;
 
   return lp;
