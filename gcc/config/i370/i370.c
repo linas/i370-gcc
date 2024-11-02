@@ -60,7 +60,11 @@ extern FILE *asm_out_file;
    The first_ref_page is the page on which the first ref appears.
    The label_addr is an estimate of its location in the current routine,
    The label_first & last_ref are estimates of where the earliest and
-      latest references to this label occur.  */
+      latest references to this label occur.
+   The jump_page is a count of how many times a jump table was seen.
+      Each jump table triggers an ltorg and thus a new page.
+   The ref_jump is a boolean indicating that a reload is needed.
+  */
 
 typedef struct label_node
   {
@@ -631,9 +635,8 @@ i370_label_scan (void)
            /* If there is no label for this jump, then this
               had better be a ADDR_VEC or an ADDR_DIFF_VEC
               and there had better be a vector of labels.
-              This vector holds a jump table. Nothing will
-              branch into this table, so we on't need to
-              record labels that occur here.  */
+              This vector holds an absolute jump table. Every
+              label in this jump table *will* require a reload.  */
            if (!label)
              {
                int j;
@@ -643,7 +646,6 @@ i370_label_scan (void)
                     int veclen = XVECLEN (body, 0);
                     tablejump_offset += 4 * veclen;
                     tablejump_num ++;
-#ifdef RECORD_REF
                     for (j=0; j < veclen; j++)
                       {
                          rtx lref = XVECEXP (body, 0, j);
@@ -651,9 +653,8 @@ i370_label_scan (void)
                          label = XEXP (lref,0);
                          if (CODE_LABEL != GET_CODE (label)) abort ();
                          here += 4;
-                         I370_RECORD_LABEL_REF(label,here);
+                         I370_RECORD_LABEL_REF(label, here, -2);
                       }
-#endif /* RECORD_REF */
                     /* Finished with the vector. Go do next insn. */
                     continue;
                  }
@@ -685,13 +686,17 @@ i370_label_scan (void)
                     * The .L259: is output by ASM_OUTPUT_CASE_LABEL
                     * Each .long is output by ASM_OUTPUT_ADDR_DIFF_ELT
                     * The tblend is output by ASM_OUTPUT_CASE_END
+                    *
+                    * Although the jump is relative, there will have
+                    * been an ltorg right before the jump table, and
+                    * so all targets are guaranteed to be on a
+                    * different page and thus require a reload.
                     */
                     int veclen = XVECLEN (body, 1);
                     tablejump_offset += 4 * veclen;
                     tablejump_num ++;
                     rtx lbase = XEXP (body, 0);
                     if (LABEL_REF != GET_CODE (lbase)) abort();
-#ifdef RECORD_REF
                     for (j=0; j < veclen; j++)
                       {
                          rtx lref = XVECEXP (body, 1, j);
@@ -699,9 +704,8 @@ i370_label_scan (void)
                          label = XEXP (lref,0);
                          if (CODE_LABEL != GET_CODE (label)) abort ();
                          here += 4;
-                         I370_RECORD_LABEL_REF(label,here);
+                         I370_RECORD_LABEL_REF(label, here, -2);
                       }
-#endif /* RECORD_REF */
                     /* Finished with the vector. Go do next insn. */
                     continue;
                  }
@@ -955,12 +959,6 @@ mvs_add_label (int id)
       return;
     }
 
-  /* If we are here, then either we arrive here from a short distance
-     in the past, and/or we arrive here from some jumper still ahead.
-     If the latest ref comes before the label itself, then there are
-     no jumps from later on, and so we're good. No reload needed. */
-  if (lp->label_last_ref < lp->label_addr) return;
-
   /* If there is a jump table between the label and a reference to it,
      then a reload is needed. That's because an .ltorg is dumped right
      before the jump table, and so the label and it's ref are guaranteed
@@ -970,6 +968,12 @@ mvs_add_label (int id)
       mvs_need_base_reload ++;
       return;
     }
+
+  /* If we are here, then either we arrive here from a short distance
+     in the past, and/or we arrive here from some jumper still ahead.
+     If the latest ref comes before the label itself, then there are
+     no jumps from later on, and so we're good. No reload needed. */
+  if (lp->label_last_ref < lp->label_addr) return;
 
   /* If we are here, then some later insn branches backwards to the
      label here.  Is that later insn on a different page from the
