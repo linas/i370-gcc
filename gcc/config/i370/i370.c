@@ -67,11 +67,15 @@ typedef struct label_node
     struct label_node *label_next;
     int label_id;
     int label_page;
+    int jump_page;
     int first_ref_page;
 
     int label_addr;
     int label_first_ref;
     int label_last_ref;
+
+    bool ref_jump;
+    bool ref_indirect;
   }
 label_node_t;
 
@@ -547,14 +551,19 @@ i370_short_branch (rtx insn)
    [(set_attr "length" "nn")] used in i370.md. This gives an upper
    bound for the instruction length. The mvs_check_page() gives a more
    accurate size, but isn't hooked up to the attribute.
+
+   The jump_ref flag is set, if the label and the label reference are
+   separated by a jump table. Since jump tables are preceeded by ltorg,
+   a base reload will be reqired.
  */
 
-#define I370_RECORD_LABEL_REF(label,addr) {				\
+#define I370_RECORD_LABEL_REF(label,addr,jmpno) {			\
 	label_node_t *lp;						\
 	int labelno = CODE_LABEL_NUMBER (label);			\
 	lp = mvs_get_label (labelno);					\
 	if (addr < lp -> label_first_ref) lp->label_first_ref = addr;	\
 	if (addr > lp -> label_last_ref) lp->label_last_ref = addr;	\
+	if (jmpno != lp -> jump_page) lp->ref_jump = 1;			\
 }
 
 static void
@@ -563,6 +572,7 @@ i370_label_scan (void)
    rtx insn;
    label_node_t *lp;
    int tablejump_offset = 0;
+   int tablejump_num = 0;
    int last_addr = 0;
 
    for (insn = get_insns(); insn; insn = NEXT_INSN(insn))
@@ -600,6 +610,7 @@ i370_label_scan (void)
 
            lp = mvs_get_label (labelno);
            lp -> label_addr = here;
+           lp -> jump_page = tablejump_num;
 #if 0
            /* Supposedly, labels are supposed to have circular
               lists of label-refs that reference them, set up in
@@ -632,6 +643,7 @@ i370_label_scan (void)
                  {
                     int veclen = XVECLEN (body, 0);
                     tablejump_offset += 4 * veclen;
+                    tablejump_num ++;
 #ifdef RECORD_REF
                     for (j=0; j < veclen; j++)
                       {
@@ -677,6 +689,7 @@ i370_label_scan (void)
                     */
                     int veclen = XVECLEN (body, 1);
                     tablejump_offset += 4 * veclen;
+                    tablejump_num ++;
                     rtx lbase = XEXP (body, 0);
                     if (LABEL_REF != GET_CODE (lbase)) abort();
 #ifdef RECORD_REF
@@ -718,7 +731,7 @@ i370_label_scan (void)
               /* At this point, this jump_insn had better be a plain-old
                  ordinary one, grap the label id and go */
               if (CODE_LABEL != GET_CODE (label)) abort ();
-              I370_RECORD_LABEL_REF(label,here);
+              I370_RECORD_LABEL_REF(label, here, tablejump_num);
             }
         }
 
@@ -739,7 +752,7 @@ i370_label_scan (void)
                         if (label && CODE_LABEL == GET_CODE (label)
                             && NOTE_LINE_NUMBER (label) != NOTE_INSN_DELETED_LABEL)
                           {
-                            I370_RECORD_LABEL_REF(label,here);
+                            I370_RECORD_LABEL_REF(label, here, tablejump_num);
                           }
                      }
                 }
@@ -874,14 +887,17 @@ mvs_get_label (int id)
       lp = (label_node_t *) xmalloc (sizeof (label_node_t));
     }
 
-  /* initialize for new label */
+  /* Initialize for new label.  */
   lp->label_id = id;
   lp->label_page = -1;
+  lp->jump_page = -1;
   lp->label_next = label_anchor;
   lp->label_first_ref = 2000123123;
   lp->label_last_ref = -1;
   lp->label_addr = -1;
   lp->first_ref_page = -1;
+  lp->ref_jump = 0;
+  lp->ref_indirect = 0;
   label_anchor = lp;
 
   return lp;
@@ -949,6 +965,16 @@ mvs_add_label (int id)
      If the latest ref comes before the label itself, then there are
      no jumps from later on, and so we're good. No reload needed. */
   if (lp->label_last_ref < lp->label_addr) return;
+
+  /* If there is a jump table between the label and a reference to it,
+     then a reload is needed. That's because an .ltorg is dumped right
+     before the jump table, and so the label and it's ref are guaranteed
+     to be on different pages.  */
+  if (lp->ref_jump)
+    {
+      mvs_need_base_reload ++;
+      return;
+    }
 
   /* If we are here, then some later insn branches backwards to the
      label here.  Is that later insn on a different page from the
