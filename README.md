@@ -101,7 +101,8 @@ Change as appropriate.
 
 FYI: See the [cross-compiling reference](https://gcc.gnu.org/onlinedocs/gccint/Configure-Terms.html).
 
-The following seems to work:
+The above should have been enough. Yet it isn't; things break in strange
+weird ways.  The following does seem to work (for me):
 ```
 cd /usr/local
 sudo cp -pr i370-linux-uclibc/usr/include i370-ibm-linux
@@ -110,19 +111,20 @@ sudo cp -pr i370-linux-uclibc/usr/lib/* i370-ibm-linux/lib
 CC="i370-ibm-linux-gcc -B$SYSROOT/usr/lib -L$SYSROOT/usr/lib" \
 CC_FOR_BUILD="gcc -I/usr/include -I/usr/include/x86_64-linux-gnu/ -D__x86_64__ -U__ILP32__" \
 ../configure --host=i370-ibm-linux \
-             --target=i370-ibm-linux
+             --target=i370-ibm-linux \
              --build=x86_64-unknown-linux-gnu \
              --prefix=$SYSROOT/usr \
              --enable-languages="c" --disable-threads
 ```
 The two `sudo cp` put the i370 C library and header files where they
--can be found. The C library must have been built and installed sometime
+can be found. The C library must have been built and installed sometime
 earlier. Despite this, the build will use the incorrect `crt1.o` if the
 `-B` flag isn't given. The `-L` is there for good luck.
 
 The `CC_FOR_BUILD` is needed because the build gcc seems to have trouble
 finding header files, and then there's some weirdness with `<gnu/stubs.h>`
-that has to be hacked around. At least for me. YMMV.
+that has to be hacked around with the `-D` and `-U` flags. At least for me.
+YMMV.
 
 How to get a C library is explained at
 [github.com/linas/i370-bigfoot](https://github.com/linas/i370-bigfoot).
