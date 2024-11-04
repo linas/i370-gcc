@@ -1757,8 +1757,6 @@ enum reg_class
 
 #undef ASM_OUTPUT_EXTERNAL
 
-#define ASM_DOUBLE "\t.double"
-
 /* #define ASM_OUTPUT_LABELREF(FILE, NAME) */	/* use gas -- defaults.h */
 
 /* Called at the start of relative or absolute jump table.
