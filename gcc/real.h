@@ -237,6 +237,7 @@ extern const struct real_format vax_d_format;
 extern const struct real_format vax_g_format;
 extern const struct real_format i370_single_format;
 extern const struct real_format i370_double_format;
+extern const struct real_format i370_extended_format;
 extern const struct real_format c4x_single_format;
 extern const struct real_format c4x_extended_format;
 extern const struct real_format real_internal_format;

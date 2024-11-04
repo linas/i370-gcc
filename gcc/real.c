@@ -4015,7 +4015,9 @@ const struct real_format vax_g_format =
     false
   };
 
-/* A good reference for these can be found in chapter 9 of
+/* These support the IBM "Hexadecimal Float Point" (HFP) format.
+
+   A good reference for these can be found in chapter 9 of
    "ESA/390 Principles of Operation", IBM document number SA22-7201-01.
    An on-line version can be found here:
 
@@ -4029,6 +4031,10 @@ static void decode_i370_single (const struct real_format *,
 static void encode_i370_double (const struct real_format *fmt,
 				long *, const REAL_VALUE_TYPE *);
 static void decode_i370_double (const struct real_format *,
+				REAL_VALUE_TYPE *, const long *);
+static void encode_i370_extended (const struct real_format *fmt,
+				long *, const REAL_VALUE_TYPE *);
+static void decode_i370_extended (const struct real_format *,
 				REAL_VALUE_TYPE *, const long *);
 
 static void
@@ -4172,6 +4178,107 @@ decode_i370_double (const struct real_format *fmt ATTRIBUTE_UNUSED,
     }
 }
 
+static void
+encode_i370_extended (const struct real_format *fmt ATTRIBUTE_UNUSED,
+		    long *buf, const REAL_VALUE_TYPE *r)
+{
+  unsigned long sign, exp, image_hi, image_lo, image_ei, image_eo;
+
+  sign = r->sign << 31;
+
+  switch (r->class)
+    {
+    case rvc_zero:
+      image_hi = image_lo = image_ei = image_eo = 0;
+      break;
+
+    case rvc_inf:
+    case rvc_nan:
+      image_hi = 0x7fffffff | sign;
+      image_lo = 0xffffffff;
+      image_ei = 0xffffffff;
+      image_eo = 0xffffffff;
+      break;
+
+    case rvc_normal:
+      if (HOST_BITS_PER_LONG == 64)
+	{
+	  image_hi = r->sig[SIGSZ-1];
+	  image_ei = r->sig[SIGSZ-2];
+	  image_eo = (image_ei >> 16) & 0xffffffff;
+	  image_ei = (image_ei >> 48) | ((image_hi & 0xff) << 16);
+	  image_lo = (image_hi >> (64 - 56)) & 0xffffffff;
+	  image_hi = (image_hi >> (64 - 56 + 1) >> 31) & 0xffffff;
+	}
+      else
+	{
+	  image_hi = r->sig[SIGSZ-1];
+	  image_lo = r->sig[SIGSZ-2];
+	  image_ei = r->sig[SIGSZ-3];
+	  image_eo = r->sig[SIGSZ-4];
+	  image_eo = (image_eo >> 16) | (image_ei << 16);
+	  image_ei = (image_ei >> 16) | ((image_lo & 0xff) << 16);
+	  image_lo = (image_lo >> 8) | (image_hi << 24);
+	  image_hi >>= 8;
+	}
+
+      exp = ((r->exp / 4) + 64) << 24;
+      image_hi |= sign | exp;
+      break;
+
+    default:
+      abort ();
+    }
+
+  if (FLOAT_WORDS_BIG_ENDIAN)
+    buf[0] = image_hi, buf[1] = image_lo, buf[2] = image_ei, buf[3] = image_eo;
+  else
+    buf[0] = image_eo, buf[1] = image_ei, buf[2] = image_lo, buf[3] = image_hi;
+}
+
+static void
+decode_i370_extended (const struct real_format *fmt ATTRIBUTE_UNUSED,
+		    REAL_VALUE_TYPE *r, const long *buf)
+{
+  unsigned long sign, image_hi, image_lo, image_ei, image_eo;
+  int exp;
+
+  if (FLOAT_WORDS_BIG_ENDIAN)
+    image_hi = buf[0], image_lo = buf[1], image_ei = buf[2], image_eo = buf[3];
+  else
+    image_eo = buf[0], image_ei = buf[1], image_lo = buf[2], image_hi = buf[3];
+
+  sign = (image_hi >> 31) & 1;
+  exp = (image_hi >> 24) & 0x7f;
+  image_hi &= 0xffffff;
+  image_lo &= 0xffffffff;
+  image_ei &= 0xffffff;
+  image_eo &= 0xffffffff;
+
+  memset (r, 0, sizeof (*r));
+
+  if (exp || image_hi || image_lo || image_ei || image_eo)
+    {
+      r->class = rvc_normal;
+      r->sign = sign;
+      r->exp = (exp - 64) * 4 + (SIGNIFICAND_BITS - 96); /* ?? */
+
+      if (HOST_BITS_PER_LONG == 32)
+	{
+	  r->sig[0] = image_eo;
+	  r->sig[1] = image_ei;
+	  r->sig[2] = image_lo;
+	  r->sig[3] = image_hi;
+	}
+      else
+	{
+	  r->sig[0] = image_eo | (image_ei << 32) | (image_lo << 56);
+	  r->sig[1] = ((image_lo >> 8) & 0xffffff) | (image_hi << 24);
+	}
+      normalize (r);
+    }
+}
+
 const struct real_format i370_single_format =
   {
     encode_i370_single,
@@ -4185,8 +4292,8 @@ const struct real_format i370_single_format =
     31,
     false,
     false,
-    false, /* ??? The encoding does allow for "unnormals".  */
-    false, /* ??? The encoding does allow for "unnormals".  */
+    true, /* Denormalized floats explicitly supported. */
+    true,
     false
   };
 
@@ -4203,8 +4310,26 @@ const struct real_format i370_double_format =
     63,
     false,
     false,
-    false, /* ??? The encoding does allow for "unnormals".  */
-    false, /* ??? The encoding does allow for "unnormals".  */
+    true, /* Denormalized floats explicitly supported. */
+    true,
+    false
+  };
+
+const struct real_format i370_extended_format =
+  {
+    encode_i370_extended,
+    decode_i370_extended,
+    16,
+    4,
+    28,
+    28,
+    -64,
+    63,
+    127,
+    false,
+    false,
+    true, /* Denormalized floats explicitly supported. */
+    true,
     false
   };
 
