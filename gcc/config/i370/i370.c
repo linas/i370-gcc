@@ -321,10 +321,12 @@ i370_override_options (void)
     }
 #endif /* TARGET_ELF_ABI */
 
-  /* We're 370 floating point, not IEEE floating point.  */
+  /* Use IBM Hexadecimal Float Point (HFP),
+     and not Binary Floating Point (BFP, aka IEEE).  */
   memset (real_format_for_mode, 0, sizeof real_format_for_mode);
   REAL_MODE_FORMAT (SFmode) = &i370_single_format;
   REAL_MODE_FORMAT (DFmode) = &i370_double_format;
+  REAL_MODE_FORMAT (XFmode) = &i370_extended_format;
 }
 
 #ifdef TARGET_HLASM
