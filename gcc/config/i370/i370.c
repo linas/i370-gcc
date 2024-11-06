@@ -3086,19 +3086,21 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   ".section .data.pool\n"
                   "\t.balign 4\n"
                   "%s:\n"
-                  "\tST\tr12,68(,r11)\n"
-                  "\tL\tr12,12(,r15)\n"
-                  "\tBR\tr12\n"
-                  "\t.short\t0\n"
-                  "\t.long\t%s.textentry\n"
-                  "\t.long\t.LPOOL%d\n"
-                  "\t.long\t%d\n"
-                  "\t.long\t.LPGT%d\n"
+                  "\tST\tr12,68(,r11)\n"     /* 0 bytes */
+                  "\tL\tr12,12(,r15)\n"      /* 4 bytes */
+                  "\tBR\tr12\n"              /* 8 bytes */
+                  "\t.short\t0\n",           /* 10 bytes */
+               fnname, fnname);
+
+      fprintf (f, "\t.long\t%s.textentry\n"  /* 12 bytes */
+                  "\t.long\t.LPOOL%d\n"      /* 16 pool table */
+                  "\t.long\t%d\n"            /* 20 frame size */
+                  "\t.long\t.LPGT%d\n"       /* 24 page table */
                   "\t.using\t.LPOOL%d,r12\n"
                   ".previous\n"
                   "# Function %s prologue \n"
                   "%s.textentry:\n",
-               fnname, fnname, fnname,
+               fnname,
                i370_pic_pool_num, aligned_size, mvs_page_num,
                i370_pic_pool_num, fnname, fnname);
 
@@ -3120,7 +3122,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* 16(r15) == PIC pool pointer (ptr to literals in data section) */
       fprintf (f, "\tL\tr12,16(,r15)\n");
 
-      /* Move code page pool to bottom of frame. */
+      /* 24(r15) == code page table to bottom of frame. */
       fprintf (f, "\tMVC\t0(4,r13),24(r15)\n");
     }
   else
