@@ -385,6 +385,7 @@ extern void i370_override_options (void);
 /* Define base and page registers.  */
 #define BASE_REGISTER 3
 #define PIC_BASE_REGISTER 12
+#define PIC_POOL_SECTION ".data.pool"
 
 /* Register to use for pushing function arguments.  */
 #define STACK_POINTER_REGNUM 11

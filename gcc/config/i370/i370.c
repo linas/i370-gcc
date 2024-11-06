@@ -1162,13 +1162,14 @@ mvs_check_page (FILE *file, int code, int lit)
        * The PIC reg is r12, it points at the literal pool. */
       if (mvs_page_lit + lit > MAX_MVS_PAGE_LENGTH)
         {
-          fprintf (assembler_source, ".data\n"
+          fprintf (assembler_source, ".section %s\n"
                                      "\t.balign\t4\n"
                                      ".LPOOL%d:\n"
                                      "\t.ltorg\n"
                                      "\t.drop\tr%d\n"
                                      "\t.using\t.LPOOL%d,r%d\n"
                                      ".previous\n",
+                   PIC_POOL_SECTION,
                    i370_pic_pool_num, PIC_BASE_REGISTER,
                    i370_pic_pool_num+1, PIC_BASE_REGISTER);
 
@@ -3082,15 +3083,15 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
     {
       /* Use register 12 as base register for addressing
         into the data section.  */
-      fprintf (f, "# Function %s data segment PIC glue \n"
-                  ".section .data.pool\n"
+      fprintf (f, "# Function %s PIC glue \n"
+                  ".section %s\n"
                   "\t.balign 4\n"
                   "%s:\n"
                   "\tST\tr12,68(,r11)\n"     /* 0 bytes */
                   "\tL\tr12,12(,r15)\n"      /* 4 bytes */
                   "\tBR\tr12\n"              /* 8 bytes */
                   "\t.short\t0\n",           /* 10 bytes */
-               fnname, fnname);
+               fnname, PIC_POOL_SECTION, fnname);
 
       fprintf (f, "\t.long\t%s.textentry\n"  /* 12 bytes */
                   "\t.long\t.LPOOL%d\n"      /* 16 pool table */
@@ -3215,7 +3216,7 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   fprintf (file, "# Function literal pool\n");
   if (i370_enable_pic)
     {
-      fprintf (file, ".section .data.pool\n");
+      fprintf (file, ".section %s\n", PIC_POOL_SECTION);
       fprintf (file, "\t.balign\t4\n");
       fprintf (file, ".LPOOL%d:\n",i370_pic_pool_num);
       fprintf (file, "\t.ltorg\n");
