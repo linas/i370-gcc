@@ -773,26 +773,31 @@ i370_label_scan (void)
       DC A(PG0)
       DC A(PG1)
 
-   The ELF version keeps the base register table in either the text or the
+   The MVS/OE function prologue loads the page addressing register r4:
+      L       PAGE_REGISTER,=A(PGT0)
+   When the base register needs to be reloaded, it is reloaded from
+   the page register.
+
+   The ELF version keeps the page table in either the text or the
    data section, depending on the setting of the i370_enable_pic flag.
-   Disabling this flag frees r12 for general purpose use, but makes the
-   code non-relocatable.  The non-pic table resemble the mvs-style table.
-   The pic table stores values for both r3 (the register used for branching)
-   and r12 (the register to index the literal pool, kept in the data section).
-   Thus, the ELF pic version has more entries.
+   Disabling this flag frees r12 for general purpose use, but results
+   in relocations that are in the text section.  The non-pic table
+   resembles the mvs-style table.
+
+   The pic table stores values for both r3 (the register used for
+   branching) and r12 (the register to index the literal pool, kept
+   in the data section).  Thus, the ELF pic version has more entries.
 
      .LPGT0:          // PGT0 EQU *
-     .long .LPG0      // DC A(PG0)
-     .long .LPG1      // DC A(PG1)
-     .long .LPOOL0
-     .long .LPOOL1
-
-  Note that the function prologue loads the page addressing register r4:
-      L       PAGE_REGISTER,=A(.LPGT0)
+     .long .LPG0      // Addr of code page, using r3 for branching
+     .long .LPG1      // Next code page (if code is longer than 4K)
+     .long .LPOOL0    // Addr of literal pool, using r12 for addressing
+     .long .LPOOL1    // More literals, if first pool is bgger than 4K
 
   The ELF version then stores this value at 0(r13), so that its always
-  accessible. This frees up r4 for general register allocation; whereas
-  the MVS version is stuck with r4.
+  accessible. It does not use a page register. The idea is that large
+  functions are infrequent, and its pointless to burn a register for
+  this.
 
   Note that this addressing scheme breaks down when a single subroutine
   has more than twelve MBytes of code or so for non-pic, and 6MB for pic.
@@ -2987,13 +2992,12 @@ i370_file_end (void)
 
 #ifdef TARGET_ELF_ABI
 /* Track how many registers we have to actually save/restore.
-   Currently, we always trash 3 & 4, so must save/restore those.
+   Currently, we always trash 3 so must save/restore this.
    We always trash 11 and 13, so must save/restore those.
-   Everything between 5 and 10 is a tossup; maybe the compiler
+   Everything between 4 and 10 is a toss-up; maybe the compiler
    allocates these, and maybe not. Reg alloc order prefers r10
    over r9 over r8, etc. so for load multiple, just find the least.
-   Future todo: move r3 & r4 to r10 & r9, so we can have a longer
-   unbroken LM/STM.  */
+   Future todo: move r3 to r10, to have a longer unbroken LM/STM.  */
 
 static int least_used_register(void)
 {
@@ -3043,17 +3047,16 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   static int function_label_index = 1;
   int minr, stackframe_size, aligned_size;
 
-  /* store stack size where we can get to it */
+  /* Store stack size where we can get to it. */
 #ifdef STACK_GROWS_DOWNWARDS
+  # error "Downward-growing stack not implemented"
   stackframe_size =
      STACK_POINTER_OFFSET + current_function_outgoing_args_size + frame_size;
 #else /* STACK_GROWS_DOWNWARDS */
   stackframe_size =
      STACK_POINTER_OFFSET + current_function_args_size + frame_size;
   if (current_function_stdarg)
-    {
-      stackframe_size += I370_VARARGS_AREA_SIZE;
-    }
+    stackframe_size += I370_VARARGS_AREA_SIZE;
 #endif /* STACK_GROWS_DOWNWARDS */
 
   aligned_size = (stackframe_size + 7) >> 3;
@@ -3159,7 +3162,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* r11 == callee top-of-stack pointer = caller sp + stackframe size. */
       fprintf (f, "\tA\tr11,4(,r15)\n");
 
-      /* r4 will be the pointer to the code page pool for this function. */
+      /* Move code page pool to bottom of frame. */
       fprintf (f, "\tL\tr4,8(,r15)\n");
     }
 #endif /* STACK_GROWS_DOWNWARDS */
@@ -3171,7 +3174,6 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   fprintf (f, ".LPG%d:\n", mvs_page_num  );
   function_label_index ++;
 
-  /* Store the code page pool off of the frame pointer for easy access. */
   fprintf (f, "\tST\tr4,0(r13)\n");
   fprintf (f, "# Function code\n");
 
@@ -3238,9 +3240,7 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
       fprintf (file, ".LPGT%d:\n", function_base_page);
       mvs_page_num++;
       for ( i = function_base_page; i < mvs_page_num; i++ )
-        {
-          fprintf (file, "\t.long\t.LPG%d\n", i);
-        }
+        fprintf (file, "\t.long\t.LPG%d\n", i);
     }
   mvs_free_label_list();
 }
