@@ -3002,7 +3002,7 @@ i370_file_end (void)
 static int least_used_register(void)
 {
   int i;
-  for (i=5; i < 11; i++)
+  for (i=4; i < 11; i++)
     if (regs_ever_live[i])
       return i;
   return 11;
@@ -3083,7 +3083,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* Use register 12 as base register for addressing
         into the data section.  */
       fprintf (f, "# Function %s data segment PIC glue \n"
-                  ".data\n"
+                  ".section .data.pool\n"
                   "\t.balign 4\n"
                   "%s:\n"
                   "\tST\tr12,68(,r11)\n"
@@ -3107,7 +3107,9 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* but is overkill for what really needs to be saved. */
       /* fprintf (f, "\tSTM\tr13,r11,8(r11)\n"); */
       fprintf (f, "\tSTM\tr13,r14,8(r11)\n");
-      fprintf (f, "\tSTM\tr2,r11,28(r11)\n");
+      fprintf (f, "\tSTM\tr2,r3,28(r11)\n");
+      minr = least_used_register();
+      fprintf (f, "\tSTM\tr%d,r11,%d(r11)\n", minr, 20+4*minr);
 
       /* Load frame, arg pointer from callers top-of-stack. */
       fprintf (f, "\tLR\tr13,r11\n");
@@ -3115,12 +3117,11 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* Bump stack pointer by 20(r15) == stackframe size. */
       fprintf (f, "\tA\tr11,20(,r15)\n");
 
-      /* 16(r15) == PIC pool pointer (pointer to literals in data section */
+      /* 16(r15) == PIC pool pointer (ptr to literals in data section) */
       fprintf (f, "\tL\tr12,16(,r15)\n");
 
-      /* r4 will be the pointer to the code page pool for this function */
-      /* XXX Whut? I thought we were using 0(r13) and not using r4!?? */
-      fprintf (f, "\tL\tr4,24(,r15)\n");
+      /* Move code page pool to bottom of frame. */
+      fprintf (f, "\tMVC\t0(4,r13),24(r15)\n");
     }
   else
     {
@@ -3142,17 +3143,14 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* FENT == function prologue entry */
       fprintf (f, "\t.balign 2\n.LFENT%06d:\n", function_label_index);
 
-      /* Store call-used registers 13,14, etc. at 8 bytes from fp.
+      /* Store call-used registers 13,14 at 8 bytes from fp.
          For debugging corruption in user code, store them all.
-         For good results, store 13,14 and r2 to r12.
-         For best results, ask the compiler what was used.
-         Not clear if this optimization is worth it, but whatever. */
+         Otherwise, ask the compiler what was used.  */
       /* fprintf (f, "\tSTM\tr13,r12,8(r11)\n"); */
 
       fprintf (f, "\tSTM\tr13,r14,8(r11)\n");
-      /* fprintf (f, "\tSTM\tr2,r12,28(r11)\n"); */
+      fprintf (f, "\tSTM\tr2,r3,28(r11)\n");
       minr = least_used_register();
-      fprintf (f, "\tSTM\tr2,r4,28(r11)\n");
       fprintf (f, "\tSTM\tr%d,r12,%d(r11)\n", minr, 20+4*minr);
 
       /* r13 == callee frame ptr. r11 == caller top-of-stack ptr. */
@@ -3163,7 +3161,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       fprintf (f, "\tA\tr11,4(,r15)\n");
 
       /* Move code page pool to bottom of frame. */
-      fprintf (f, "\tL\tr4,8(,r15)\n");
+      fprintf (f, "\tMVC\t0(4,r13),8(r15)\n");
     }
 #endif /* STACK_GROWS_DOWNWARDS */
 
@@ -3174,12 +3172,11 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   fprintf (f, ".LPG%d:\n", mvs_page_num  );
   function_label_index ++;
 
-  fprintf (f, "\tST\tr4,0(r13)\n");
   fprintf (f, "# Function code\n");
 
   mvs_free_label_list ();
-  mvs_page_code = 6;
-  mvs_page_lit = 4;
+  mvs_page_code = 2;
+  mvs_page_lit = 0;
   mvs_check_page (f, 0, 0);
   function_base_page = mvs_page_num;
   function_base_pic_pool = i370_pic_pool_num;
@@ -3207,14 +3204,14 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   mvs_check_page (file,14,0);
   minr = least_used_register();
   fprintf (file, "# Function epilogue\n");
-  fprintf (file, "\tLM\tr2,r4,28(r13)\n");
+  fprintf (file, "\tLM\tr2,r3,28(r13)\n");
   fprintf (file, "\tLM\tr%d,r12,%d(r13)\n", minr, 20+4*minr);
   fprintf (file, "\tLM\tr13,r14,8(r13)\n");
   fprintf (file, "\tBASR\tr1,r14\n");
   fprintf (file, "# Function literal pool\n");
   if (i370_enable_pic)
     {
-      fprintf (file, ".data\n");
+      fprintf (file, ".section .data.pool\n");
       fprintf (file, "\t.balign\t4\n");
       fprintf (file, ".LPOOL%d:\n",i370_pic_pool_num);
       fprintf (file, "\t.ltorg\n");
