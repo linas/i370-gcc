@@ -740,27 +740,24 @@ i370_label_scan (void)
       /* Sometimes, we take addresses of labels and use them
          as instruction operands ... these show up as REG_NOTES */
       else
-      if (INSN == code)
-       {
-         if ('i' == GET_RTX_CLASS (code))
-           {
-              rtx note;
-              for (note = REG_NOTES (insn); note;  note = XEXP(note,1))
+      if ((INSN == code) && ('i' == GET_RTX_CLASS (code)))
+        {
+          rtx note;
+          for (note = REG_NOTES (insn); note;  note = XEXP(note,1))
+            {
+              if (REG_LABEL != REG_NOTE_KIND(note))
+                continue;
+
+              /* Record, only if the label is not deleted */
+              rtx label = XEXP (note,0);
+              if (label && CODE_LABEL == GET_CODE (label)
+                  && NOTE_LINE_NUMBER (label) != NOTE_INSN_DELETED_LABEL)
                 {
-                   if (REG_LABEL == REG_NOTE_KIND(note))
-                     {
-                        /* Record, only if the label is not deleted */
-                        rtx label = XEXP (note,0);
-                        if (label && CODE_LABEL == GET_CODE (label)
-                            && NOTE_LINE_NUMBER (label) != NOTE_INSN_DELETED_LABEL)
-                          {
-                            I370_RECORD_LABEL_REF(label, here, tablejump_num);
-                          }
-                     }
+                  I370_RECORD_LABEL_REF(label, here, tablejump_num);
                 }
-           }
-       }
-   }
+            }
+        }
+    }
 }
 
 /* ===================================================== */
