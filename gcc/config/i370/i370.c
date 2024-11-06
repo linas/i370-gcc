@@ -3097,12 +3097,14 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   "\t.long\t%d\n"            /* 20 frame size */
                   "\t.long\t.LPGT%d\n"       /* 24 page table */
                   "\t.using\t.LPOOL%d,r12\n"
-                  ".previous\n"
-                  "# Function %s prologue \n"
-                  "%s.textentry:\n",
+                  ".previous\n",
                fnname,
                i370_pic_pool_num, aligned_size, mvs_page_num,
-               i370_pic_pool_num, fnname, fnname);
+               i370_pic_pool_num);
+
+      fprintf (f, "# Function %s prologue \n"
+                  "%s.textentry:\n",
+               fnname, fnname);
 
       /* Store multiple registers 13,14 at 8 bytes from sp */
       /* The full STM r13,r11,8(r11) is handy for user debug, */
