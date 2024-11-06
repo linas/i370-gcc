@@ -3112,7 +3112,11 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* but is overkill for what really needs to be saved. */
       /* fprintf (f, "\tSTM\tr13,r11,8(r11)\n"); */
       fprintf (f, "\tSTM\tr13,r14,8(r11)\n");
-      fprintf (f, "\tSTM\tr2,r3,28(r11)\n");
+
+      /* XXX FIXME STM 2,3 should be enough except linux kernel
+         userspace entry is busted somehow if we don't also
+         save/restore r4. I'm too lazy so you pay the price. */
+      fprintf (f, "\tSTM\tr2,r4,28(r11)\n");
       minr = least_used_register();
       fprintf (f, "\tSTM\tr%d,r11,%d(r11)\n", minr, 20+4*minr);
 
@@ -3154,7 +3158,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* fprintf (f, "\tSTM\tr13,r12,8(r11)\n"); */
 
       fprintf (f, "\tSTM\tr13,r14,8(r11)\n");
-      fprintf (f, "\tSTM\tr2,r3,28(r11)\n");
+      fprintf (f, "\tSTM\tr2,r4,28(r11)\n");
       minr = least_used_register();
       fprintf (f, "\tSTM\tr%d,r12,%d(r11)\n", minr, 20+4*minr);
 
@@ -3209,7 +3213,7 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   mvs_check_page (file,14,0);
   minr = least_used_register();
   fprintf (file, "# Function epilogue\n");
-  fprintf (file, "\tLM\tr2,r3,28(r13)\n");
+  fprintf (file, "\tLM\tr2,r4,28(r13)\n");
   fprintf (file, "\tLM\tr%d,r12,%d(r13)\n", minr, 20+4*minr);
   fprintf (file, "\tLM\tr13,r14,8(r13)\n");
   fprintf (file, "\tBASR\tr1,r14\n");
