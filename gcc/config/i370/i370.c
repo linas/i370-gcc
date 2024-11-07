@@ -558,8 +558,8 @@ i370_short_branch (rtx insn)
    accurate size, but isn't hooked up to the attribute.
 
    The jump_ref flag is set, if the label and the label reference are
-   separated by a jump table. Since jump tables are preceeded by ltorg,
-   a base reload will be reqired.
+   separated by a jump table. Since jump tables are preceded by ltorg,
+   a base reload will be required.
  */
 
 #define I370_RECORD_LABEL_REF(label,addr,jmpno) {			\
@@ -909,7 +909,7 @@ mvs_get_label (int id)
 /* Called when a label is issued to the assembly file.
 
    The goal here is to determine if there are any long jumps,
-   foreward or backward, to this label. If there are, then we'll
+   forward or backward, to this label. If there are, then we'll
    be arriving at this label with some junk value in the base
    register. The next insn to touch a literal had better reload the
    base reg before touching that literal.
@@ -1219,7 +1219,7 @@ mvs_check_page (FILE *file, int code, int lit)
               /* Hop past the literal pool. */
               fprintf (assembler_source, "\tB\t.LPGE%d\n", mvs_page_num);
 
-              /* Assembler automaticaly aligns ltorg. */
+              /* Assembler automatically aligns ltorg. */
               fprintf (assembler_source, "\t.ltorg\n");
 
               /* Execution continues here. LPGE is the page end. */
@@ -3019,7 +3019,7 @@ static int least_used_register(void)
 
    Traditional MVS uses upward-growing stacks; traditional Unix has
    downward-growing stacks. The original motivator for growing down
-   is that this allows the stack to grow aritrarily large. It grows
+   is that this allows the stack to grow arbitrarily large. It grows
    towards the middle, and has nothing to worry about except maybe
    hitting the heap brk/sbrk eventually. This advantage is erased
    when multi-threading is implemented: A single virtual address space
@@ -3064,7 +3064,7 @@ static int least_used_register(void)
       frame. This is overkill; only the clobbered registers need to be
       saved. The array `regs_ever_live[]' records the clobbered regs.
       The frame could be made smaller (and "variable size", depending on
-      the function) by provding room only for the clobbered regs.
+      the function) by providing room only for the clobbered regs.
    -- The frame size is fixed because:
       * CONVLO and CONVHI are fixed and way up there. These could be
         moved low. (These are used for floating-point math conversions.)
@@ -3115,6 +3115,55 @@ static int least_used_register(void)
    Note that this bears superficial similarity to the MVS/OE stack layout,
    but in fact it is very very different.  In particular, under MVS/OE
    the roles of r11 and r13 are quite different.
+
+   ---------------------------------------------------------------
+   If the PIC flag is set, then a modified prolog is written that
+   enables position-independent code (PIC). This creates code that
+   has no relocations in the text section, so that the text section
+   can be loaded anywhere in virtual memory, without requiring any
+   relocations to be performed. The reason for excluding relocations
+   is that this allows the operating system to load just one single
+   copy of the PIC code (at some fixed real address) and then map
+   this one single (read-only) copy into different virtual addrs for
+   each app that uses the PIC code. The primary example is the
+   C library, which is loaded just once in RAM, and then used by all
+   apps.  This means it *must* be read-only, so that apps don't clobber
+   one-another. Relocations are prohibited, because the C library might
+   get mapped to different virtual addrs, depending on many factors.
+   Thus, the text can only have relative addrs, and the literal pools
+   must be placed in the data section.
+
+   The PIC design uses two base registers. The code-base reg is r3,
+   and is used for (relative) branch targets. This is same as the
+   non-PIC version for relative branch targets, with .using r3 as
+   before. However, the .ltorg cannot be dumped into the text section,
+   and so is dumped into a special .data.pool section (given a distinct
+   name for convenience only). The literals are addressed using r12 as
+   the literal-base reg. Thus, for example L r6,=A(foo) is assembled
+   into  L r6,1234(,r12) with 1234 being the actual entry in the .ltorg.
+
+   The current PIC design is as follows:
+
+   .globl funcname
+      .type funcname, @function
+
+   .section .data.pool
+   funcname:
+      ST r12,68(r11)       addr  0:  save r12 in frame
+      L  r12,12(r15)       addr  4:  load addr of funcname@text
+      BR r12               addr  8:  branch to funcname@text
+      .short 0             addr 10:  padding
+      .long funcname@text  addr 12:  addr of function in text section
+      .long funcname@pool  addr 16:  location of literal pool
+      .long stacksize      addr 20:  size of stackframe
+      .long funcname@pgt   addr 24:  location of page table (for branches)
+
+   .section .text:
+   funcname@text:
+      STM stuff     -- the conventional text function entry.
+
+   Both of these sections are assembled into the ELF file for the shared
+   object.
  */
 
 static void
