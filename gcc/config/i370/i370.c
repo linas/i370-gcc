@@ -788,7 +788,7 @@ i370_label_scan (void)
    branching) and r12 (the register to index the literal pool, kept
    in the data section).  Thus, the ELF pic version has more entries.
 
-     .LPGT0:          // PGT0 EQU *
+     funcname@pgt:    // PGT0 EQU *
      .long .LPG0      // Addr of code page, using r3 for branching
      .long .LPG1      // Next code page (if code is longer than 4K)
      .long .LPOOL0    // Addr of literal pool, using r12 for addressing
@@ -3093,18 +3093,17 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   "\t.short\t0\n",           /* 10 bytes */
                fnname, PIC_POOL_SECTION, fnname);
 
-      fprintf (f, "\t.long\t%s.textentry\n"  /* 12 bytes */
-                  "\t.long\t.LPOOL%d\n"      /* 16 pool table */
+      fprintf (f, "\t.long\t%s@fent\n"       /* 12 bytes */
+                  "\t.long\t%s@pool\n"       /* 16 pool table */
                   "\t.long\t%d\n"            /* 20 frame size */
-                  "\t.long\t.LPGT%d\n"       /* 24 page table */
-                  "\t.using\t.LPOOL%d,r12\n"
+                  "\t.long\t%s@pgt\n"        /* 24 page table */
+                  "\t.using\t%s@pool,r12\n"
                   ".previous\n",
-               fnname,
-               i370_pic_pool_num, aligned_size, mvs_page_num,
-               i370_pic_pool_num);
+               fnname, fnname,
+               aligned_size, fnname, fnname);
 
       fprintf (f, "# Function %s prologue \n"
-                  "%s.textentry:\n",
+                  "%s@fent:\n",
                fnname, fnname);
 
       /* Store multiple registers 13,14 at 8 bytes from sp */
@@ -3178,7 +3177,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
      That is, place the address of "." into r3 */
   fprintf (f, "\tBASR\tr3,0\n");
   fprintf (f, "\t.using\t.,r3\n");
-  fprintf (f, ".LPG%d:\n", mvs_page_num  );
+  fprintf (f, ".LPG%d:\n", mvs_page_num);
   function_label_index ++;
 
   fprintf (f, "# Function code\n");
@@ -3208,10 +3207,12 @@ static void
 i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
 {
   int i;
-  int minr;
+  char * fnname = mvs_function_name;
+  if ('*' == *fnname) fnname++;
+
   check_label_emit();
   mvs_check_page (file,14,0);
-  minr = least_used_register();
+  int minr = least_used_register();
   fprintf (file, "# Function epilogue\n");
   fprintf (file, "\tLM\tr2,r4,28(r13)\n");
   fprintf (file, "\tLM\tr%d,r12,%d(r13)\n", minr, 20+4*minr);
@@ -3222,11 +3223,12 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
     {
       fprintf (file, ".section %s\n", PIC_POOL_SECTION);
       fprintf (file, "\t.balign\t4\n");
+      fprintf (file, "%s@pool:\n", fnname);
       fprintf (file, ".LPOOL%d:\n",i370_pic_pool_num);
       fprintf (file, "\t.ltorg\n");
       fprintf (file, "# Function page table\n");
       fprintf (file, "\t.balign\t4\n");
-      fprintf (file, ".LPGT%d:\n", function_base_page);
+      fprintf (file, "%s@pgt:\n", fnname);
       mvs_page_num++;
       for (i = function_base_page; i < mvs_page_num; i++)
         fprintf (file, "\t.long\t.LPG%d\n", i);
