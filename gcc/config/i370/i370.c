@@ -3012,34 +3012,79 @@ static int least_used_register(void)
 /*
    The i370_output_function_prolog() routine generates the current
    ELF ABI ES/390 prolog.
-   There are some provisions for stacks that grow both up and down.  Both
-   were implemented for experimental purposes.  The two differ in subtle ways:
 
-   The downward growing stack requires the following steps:
-   -- saves the caller's non-volatile registers on the callers stack.
-   -- places callee's arguments in callers stack
-   -- adds the stackframe size to the stack/frame pointer.
-   -- optionally sets up a frame pointer
-   -- stores backpointer to old caller stack.
+   The stack is designed to grow upwards. Old experimental code for
+   downward-growing stacks has been removed; it was never completed
+   and never worked.
 
-   The upward growing stack performs the following:
-   -- saves the caller's non-volatile registers on the callee's stack.
-   -- places callee's arguments in callee's stack
-   -- adds the stackframe size to the stack pointer.
-   -- callers stack pointer becomes calee's frame pointer.
-   -- stores backpointer to old caller stack.
+   Traditional MVS uses upward-growing stacks; traditional Unix has
+   downward-growing stacks. The original motivator for growing down
+   is that this allows the stack to grow aritrarily large. It grows
+   towards the middle, and has nothing to worry about except maybe
+   hitting the heap brk/sbrk eventually. This advantage is erased
+   when multi-threading is implemented: A single virtual address space
+   must provide enough room for a stack for each thread. Stacks are
+   not relocatable at run-time: they contain unknown application data
+   that might involve fixed memory addresses. Thus, the stack for each
+   thread must be placed at a fixed, well-known location, and thus is
+   limited in size by the distance to the stack of the next thread.
+   In multi-threading, stacks are not unbounded in length. The advantage
+   of growing downward is erased.
 
-   Note that with the upwards growing stack, we pass args on the callee's
-   stack.  As a result, we don't know a-priori how many arguments there
-   will be.  We make a worse case assumption and hard-code room for 128
-   args (== I370_VARARGS_AREA_SIZE/4).  This hard-coded limit seems to
-   be a reasonable tradeoff for the otherwise much simplified and speedier
-   design.
+   The advantage of growing upward is that MVS/LE/VSE/etc. code can be
+   run on the ELF stack. There are differences in register usage, and
+   so some glue is required, but this is minor.
 
-   Refer to the array `regs_ever_live' to determine which registers to
-   save; `regs_ever_live[I]' is nonzero if register number I is ever
-   used in the function.  The prolog is responsible for knowing which
-   registers are volatile; these do not need to be saved, even if used.
+   Terminology: the "frame" is an area of fixed size, "owned" by the
+   callee. The callee will save caller non-volatile registers into the
+   frame. At the top of the frame is a two-word scratch area used by
+   the compiler for temp calculations; see CONVLO and CONVHI. After
+   this are the callee arguments. The stack starts at the top of the
+   frame, and is used by the callee to hold "stuff" including alloca()
+   stack allocations.
+
+   In the current design, the ELF ABI uses *two* registers to work with
+   the stack: the frame pointer r11, which points at the bottom of the
+   frame, and the stack pointer r13, which points at the top of the
+   stack, just past all allocations. During a function call, the
+   callee's FP is set to the callers SP.
+
+   The function prolog performs the following:
+   -- Saves the caller's non-volatile registers into the frame.
+   -- Copies callers stack pointer to becomes ca;lee's frame pointer.
+   -- Adds the stackframe size to the stack pointer.
+   -- Stores backpointer to the caller stack.
+   -- Stores location of the page table at the bottom of the frame.
+      The page table is used to find the literal pool and to compute
+      branch target offsets.
+
+   This function prolog generally resembles the MVS function prolog,
+   and thus inherited some design flaws. These include:
+   -- Fixed frame size. The MVS prolog saves *all* registers into the
+      frame. This is overkill; only the clobbered registers need to be
+      saved. The array `regs_ever_live[]' records the clobbered regs.
+      The frame could be made smaller (and "variable size", depending on
+      the function) by provding room only for the clobbered regs.
+   -- The frame size is fixed because:
+      * CONVLO and CONVHI are fixed and way up there. These could be
+        moved low.
+      * The args are at fixed locations in the callee frame, and are
+        way up there. The caller writes the args into the callee frame.
+        The callee knows this, and grabs args from that location.
+
+   The args should have been placed on the caller stack, with reg R1
+   used as the arg pointer. This is a design flaw in the ELF stack that
+   we cannot blame on MVS; it uses R1. This should be fixed.
+
+   The other problem with placing args in the callee's stack is that
+   for the varargs case, we don't know how many of them there are. Thus,
+   a worst-case assumption is made, and room for 128 varags is hard-
+   coded (== I370_VARARGS_AREA_SIZE/4). The caller knew how many, but
+   didn't tell the callee. Waa waaa waa.
+
+   The Linux kernel hardcodes the ELF stackframe design, and thus the
+   above cannot be modified without matching changes to the kernel.
+   Changing the args location would force all users to recompile.
  */
 
 static void
@@ -3049,16 +3094,10 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   int minr, stackframe_size, aligned_size;
 
   /* Store stack size where we can get to it. */
-#ifdef STACK_GROWS_DOWNWARDS
-  # error "Downward-growing stack not implemented"
-  stackframe_size =
-     STACK_POINTER_OFFSET + current_function_outgoing_args_size + frame_size;
-#else /* STACK_GROWS_DOWNWARDS */
   stackframe_size =
      STACK_POINTER_OFFSET + current_function_args_size + frame_size;
   if (current_function_stdarg)
     stackframe_size += I370_VARARGS_AREA_SIZE;
-#endif /* STACK_GROWS_DOWNWARDS */
 
   aligned_size = (stackframe_size + 7) >> 3;
   aligned_size <<= 3;
@@ -3068,10 +3107,6 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
      current_function_args_size, frame_size, aligned_size);
   fprintf (f, "# stdarg=%d rserved area size=0x%x\n",
      current_function_stdarg, I370_VARARGS_AREA_SIZE);
-
-#ifdef STACK_GROWS_DOWNWARDS
-  /* If you want your stack to grow down, you will need to create this piece. */
-#else /* STACK_GROWS_DOWNWARDS */
 
   /* Strange. With some compiler flags (not sure which), the RTX for
      a function name gets a * in front of the name.  This is added
@@ -3171,7 +3206,6 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       /* Move code page pool to bottom of frame. */
       fprintf (f, "\tMVC\t0(4,r13),8(r15)\n");
     }
-#endif /* STACK_GROWS_DOWNWARDS */
 
   /* r3 will be the base register for this code page.
      That is, place the address of "." into r3 */
