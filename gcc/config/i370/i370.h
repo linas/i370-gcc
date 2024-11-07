@@ -688,60 +688,26 @@ enum reg_class
    The ELF target has the stackframe growing upward, and thus
    ... #define STACK_GROWS_DOWNWARD
    ... #define FRAME_GROWS_DOWNWARD
-   are never set. There's some experimentation with having the stack
-   grow the other way, in the i370.c file, but it is incomplete.
-   Note that STARTING_FRAME_OFFSET would have to be fixed.
-
-   Here's the stack layout as currently designed:
-
-   r11 -- top of stack aka stack pointer
-   -4(r11) -- last local (stack) variable)
-   ...          ...
-   88+4*nargs(r13) -- first local (stack) variable.
-   ...          ...
-   92(r13) -- second incoming (callee) argument
-   88(r13) -- first incoming (callee) argument
-   84(r13) -- volatile scratch area
-   80(r13) -- volatile scratch area
-   76(r13) -- not used (frame size)
-   72(r13) -- not used
-   68(r13) -- saved callers r12
-   64(r13) -- saved callers r11
-   ...          ...
-   28(r13) -- saved callers r2
-   24(r13) -- saved callers r1
-   20(r13) -- saved callers r0
-   16(r13) -- saved callers r15
-   12(r13) -- saved callers r14
-   8(r13)  -- saved callers r13
-   4(r13)  -- not used
-   0(r13)  -- code page table pointer
-   r13 -- bottom of stack aka frame pointer aka arg pointer
-
-   Note that this bears superficial similarity to the MVS/OE stack layout,
-   but in fact it is very very different.  In particular, under MVS/OE
-   the roles of r11 and r13 are quite different.
-
-   Note that the use of varargs/stdarg is limited to 512 bytes of
-   of arguments.  This is the price that is paid for freeing up a
-   register and having a more efficient function return.
+   are never set.
 */
 
 /* Define size of the calling convention register save area.
-   This includes room for the 16 GPR's, a saved frame size, and
-   a (floating point math) scratch area */
+   This includes room for the 16 GPR's, a (floating point math)
+   scratch area */
 #define I370_SAVE_AREA_SIZE 88
 
 /* Define the size of the amount of room reserved for varargs */
 #define I370_VARARGS_AREA_SIZE 512
 
-/* Used in i370.md for temp scratch area. Must be that last two words
-   of the I370_SAVE_AREA. */
+/* Used in i370.md for temp scratch area (used for floating point math
+   conversions). Must be the last two words of the I370_SAVE_AREA. */
 #define CONVLO "80"
 #define CONVHI "84"
 
-/* Define offset from stack pointer, to location where a parm can be
-   pushed.  */
+/* Define offset from frame pointer, to location where a param can be
+   pushed.  Currently args are written to the callee's stack, but this
+   is a mistake; they should go into caller's stack. We should use
+   R1 to point at them. */
 
 #define STACK_POINTER_OFFSET I370_SAVE_AREA_SIZE
 

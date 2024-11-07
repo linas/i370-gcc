@@ -3067,7 +3067,7 @@ static int least_used_register(void)
       the function) by provding room only for the clobbered regs.
    -- The frame size is fixed because:
       * CONVLO and CONVHI are fixed and way up there. These could be
-        moved low.
+        moved low. (These are used for floating-point math conversions.)
       * The args are at fixed locations in the callee frame, and are
         way up there. The caller writes the args into the callee frame.
         The callee knows this, and grabs args from that location.
@@ -3085,6 +3085,36 @@ static int least_used_register(void)
    The Linux kernel hardcodes the ELF stackframe design, and thus the
    above cannot be modified without matching changes to the kernel.
    Changing the args location would force all users to recompile.
+
+   Here's the stack layout as currently designed:
+
+   r11 -- top of stack aka stack pointer
+   -4(r11) -- last local (stack) variable)
+   ...          ...
+   88+4*nargs(r13) -- first local (stack) variable.
+   ...          ...
+   92(r13) -- second incoming (callee) argument
+   88(r13) -- first incoming (callee) argument
+   84(r13) -- volatile scratch area (CONVHI)
+   80(r13) -- volatile scratch area (CONVLO)
+   76(r13) -- not used
+   72(r13) -- not used
+   68(r13) -- saved callers r12
+   64(r13) -- saved callers r11
+   ...          ...
+   28(r13) -- saved callers r2
+   24(r13) -- saved callers r1
+   20(r13) -- saved callers r0
+   16(r13) -- saved callers r15
+   12(r13) -- saved callers r14
+   8(r13)  -- saved callers r13
+   4(r13)  -- not used
+   0(r13)  -- code page table pointer
+   r13 -- bottom of stack aka frame pointer aka arg pointer
+
+   Note that this bears superficial similarity to the MVS/OE stack layout,
+   but in fact it is very very different.  In particular, under MVS/OE
+   the roles of r11 and r13 are quite different.
  */
 
 static void
