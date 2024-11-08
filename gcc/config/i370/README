@@ -1,11 +1,33 @@
 
+The i370 compiler
+-----------------
 This directory contains code for building a compiler for the
-32-bit ESA/390 architecture.  It supports three different styles 
-of assembly:
+32-bit ESA/390 architecture. It is NOT for the 64-bit z/Architecture
+systems; it explicitly avoids generating any instructions that weren't
+generally available for System/390. The (misleadingly named) s390
+compiler is for use with the z/Architecture; it does NOT support the
+older S/390 systems.
 
--- MVS for use with the HLASM assembler
--- Open Edition (USS Unix System Services) 
--- ELF/Linux for use with the binutils/gas GNU assembler.
+This compiler supports two different styles of assembly:
+
+-- HLASM-style assembly code.  Can be assembled with standard HLASM.
+   The current binutils/gas assembler is now sufficiently compatible
+   with HLASM to be able to assemble the resulting output.
+-- SVR4-style assembly. Conforming to the System V Release 4 specs for
+   the various section names and pseudo-op names that are generated.
+   Designed specifically for the earliest binutils/gas implementation.
+
+Multiple operating system targets are supported:
+-- MVS, Open Edition (USS Unix System Services), VSE, DIGNUS, PDOSGB,
+   and several other MVS-like variants. These all generate HLASM-style
+   assembly, and differ primarily in how function linkage is handled:
+   the function prologs and epilogs differ between all of these. Some
+   use IBM-supplied macros, and some do not.
+-- Linux. This requires the assembler to generate ELF format binaries,
+   and thus forces the use of SVR4-style assembly.
+
+Currently, these targets are supported by recompiling the cmpiler with
+different #define settings. These should be replaced by run-time flags.
 
 
 Cross-compiling Hints
@@ -20,7 +42,7 @@ do this *before* running configure, e.g.
    configure --target=i370-ibm-linux --prefix=/where/to/install/usr
 
 The Objective-C and FORTRAN front ends don't build.  To avoid looking at
-errors, do only 
+errors, do only
 
    make LANGUAGES=c
 
@@ -33,35 +55,29 @@ The shell script "install" is handy for users of OpenEdition.
 The ELF ABI
 -----------
 This compiler, in conjunction with the gas/binutils assembler, defines
-a defacto ELF-based ABI for the ESA/390 architecture.  Be warned: this 
+a defacto ELF-based ABI for the ESA/390 architecture.  Be warned: this
 ABI is experimental.  It is subject to change.  You should not commit
 to major software systems without further exploring and understanding
 ABI issues.
+
 Here are some of the known issues:
 
--- all arguments are currently passed on the stack.  It would be more
-   efficient to pass arguments in registers.
+-- All arguments are currently passed on the callee stack. They really
+   should be moved to the caller stack.
 
--- currently, r15 is used to return 32-bit values.  Because this is the
-   last register, it prevents 64-bit ints and small structures from being 
-   returned in registers, forcing return in memory.  It would be more
-   efficient to use r14 to return 32-bit values, and r14+r15 to return
-   64-bit values.
-
--- a large variety of performance gains might be gotten by redesigning
+-- A large variety of performance gains might be gotten by redesigning
    the guts of i370.md.
 
 ELF ABI PIC Overview
 --------------------
-The -fPIC flag should produce position independent code.  By specifying this
-flag, address constants are stored in the data section, instead of the text
-section, allowing them to be adjusted during a dynamic/runtime load.  Adressing
-is established using r12 as base pointer in the data section. Crudely speaking,
-it addresses what looks like a two-level toc.  Since i370 has a very small
-offset (12-bit), a multi-level toc is needed.  In order to establish r12,
-a short chunk of linkage is executed from the data segment.  Basically, the
-calling sequence looks like this:
+The -fPIC flag should produce position independent code.  By specifying
+this flag, address constants are stored in the data section, instead of
+the text section, allowing them to be adjusted during a dynamic/runtime
+load.  Addressing is established using r12 as base pointer in the data
+section. It can be thought of as a table-of-contents (TOC) entry.
 
+In the (non-PIC, non-shared) application:
+```
 .text
 caller:
   L  r15,=A(callee)
@@ -78,6 +94,9 @@ callee:
   .long callee.pagetable
   .using   callee.literalpool,r12
 
+```
+In the PIC shared library:
+```
 .text
 callee.textentry:
   L  r12,16(,r15)
@@ -86,14 +105,15 @@ callee.textentry:
 .data
 callee.literalpool:
   .ltorg
-
+```
 
 The idea here is that r15 is used in the branch and link (BASR) to
-establish r15.  But r15 is used to address a pseudo-toc entry in the
-data section. The pseudo-toc entry contains the real address of the
+establish r15.  But r15 is used to address a pseudo-TOC entry in the
+data section. The pseudo-TOC entry contains the real address of the
 text to be called, and a pointer to the first literal pool for that
 routine.  Additional literal pools are chained as needed.
 
+A more detailed explanation can be found in the `i370.c` file.
 
 ChangeLog
 ---------
@@ -126,9 +146,9 @@ Oct98-Dec98 -- add ELF back end; work on getting ABI more or less functional.
 99.04.30 -- fix rare mulsi bug
 99.04.30 -- add constraints so that all RS, SI, SS forms insns have valid
             addressing modes
-99.04.30 -- major condition code fixes. The old code was just way off 
+99.04.30 -- major condition code fixes. The old code was just way off
             w.r.t. which insns set condition code, and the codes that
-            were set.  The extent of this damage was unbeleivable.
+            were set.  The extent of this damage was unbelievable.
 99.05.01 -- restructuring of operand constraints on many patterns,
             many lead to invalid instructions being genned.
 99.05.02 -- float pt fixes
@@ -137,10 +157,20 @@ Oct98-Dec98 -- add ELF back end; work on getting ABI more or less functional.
 99.05.05 -- fix sign extension problems on andhi
          -- deprecate some constraints
 99.05.06 -- add set_attr insn lengths; fix misc litpool sizes
-         -- add notes about how unsigned jumps work (i.e. 
+         -- add notes about how unsigned jumps work (i.e.
             arithmetic vs. logical vs. signed vs unsigned).
 99.05.11 -- use insn length to predict forward branch target;
-            use relative branchining where possible,
+            use relative branching where possible,
             remove un-needed base register reload.
-99.05.15 -- fix movstrsi, clrstrsi, cmpstrsi patterns as per conversation 
-            w/ Richard Henderson
+99.05.15 -- fix movstrsi, clrstrsi, cmpstrsi patterns as per conversation
+            w/ Richard Henderson.
+1999-2024 -- Variety of fixes from Paul Edwards, Dave Pitts and many
+            others, for a variety of issues (documented only in private
+            CVS trees). Examples include support for copying data of
+            arbitrary size (including more than 256 bytes) i.e. memcpy.
+Sept,Oct 2024 -- 25th Anniversary Edition: Merge the various different
+            fixes that have been provided into a *single* git-based
+            repo. These fixes have been tested on the Linux-2.2.1
+            kernel, the PDCLIB C library, the uClibc-ng C library, and
+            BusyBox. And by double-cross-compiling the assembler and
+            compiler itself.  These all work. I'm told PDOS works also.

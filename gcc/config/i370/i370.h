@@ -1730,7 +1730,7 @@ enum reg_class
    Great time to dump the literal pool. Start a counter, so that
    we might know how long the case table is.  Only done for non-PIC
    code; the literal pool is in the data section for PIC code, and
-   so nothing extra is neded here.  */
+   so nothing extra is needed here.  */
 #undef ASM_OUTPUT_CASE_LABEL
 #define ASM_OUTPUT_CASE_LABEL(FILE, PREFIX, NUM, TABLE)  \
   if (0 == i370_enable_pic) {                            \

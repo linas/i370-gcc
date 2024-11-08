@@ -3139,8 +3139,10 @@ static int least_used_register(void)
    before. However, the .ltorg cannot be dumped into the text section,
    and so is dumped into a special .data.pool section (given a distinct
    name for convenience only). The literals are addressed using r12 as
-   the literal-base reg. Thus, for example L r6,=A(foo) is assembled
-   into  L r6,1234(,r12) with 1234 being the actual entry in the .ltorg.
+   the literal-base reg. Thus, for example `L r6,=A(foo)` is assembled
+   into  `L r6,1234(,r12)` with 1234 being the offset from `.ltorg`.
+   This is computed be declaring `.using r12,.ltorg` which tells the
+   assembler how to compute the offset.
 
    The current PIC design is as follows:
 
@@ -3157,6 +3159,7 @@ static int least_used_register(void)
       .long funcname@pool  addr 16:  location of literal pool
       .long stacksize      addr 20:  size of stackframe
       .long funcname@pgt   addr 24:  location of page table (for branches)
+      .long 0              addr 28:  unused; resereved
 
    .section .text:
    funcname@text:
@@ -3164,6 +3167,40 @@ static int least_used_register(void)
 
    Both of these sections are assembled into the ELF file for the shared
    object.
+
+   The .data.pool entry resembles a combined GOT/PLT entry (or at least,
+   that is the goal; the implementation remains unfinished, and until it
+   is finished, there may be unforeseen design errors) This is NOT A
+   CONVENTIONAL GOT/PLT design.  It's similar but different. Everything
+   you know about got/plt is wrong. Sorry about that.
+
+   When a non-PIC application is (static) linked, it will have
+   relocations for funcname in it's text section (typically in the form
+   of `L r15,=V(funcname)` followed by `.ltorg` in the text section.)
+   These are resolved by creating objects in the .data section that are
+   32 bytes long that are a copy of the above. Because the .data section
+   is at a *fixed* location in the elf file, the relocations for the
+   `funcname` can be fully resolved by pointing them at (a copy) of the
+   above pool entry.
+
+   The value of `funcname@text` cannot be known at link time, because
+   it has to point at a shared library whose load address is not yet
+   known, and must be resolved at runtime. Likewise, the values for
+   `funcname@pool` and `funcname@pgt` are not known. Instead, the value
+   placed at `funcname@text` will be the address of the dynamic loader.
+
+   When a non-PIC application is executed, the first call to `funcname`
+   will branch to the dynamic loader. The dynamic loader is able to
+   determine the actual address of `funcname@text` and copies this into
+   the jumper entry. This is some location in the text segment of the
+   shared object. Similarly, the `funcname@pool` and `funcname@pgt` can
+   be resolved; these are somewhere in the data segment of the shared
+   object.
+
+   PIC applications can be linked and loaded in a similar fashion.
+
+   The above should be adequate to handle weak symbols: the jump entry
+   can be rewritten at any time.
  */
 
 static void
@@ -3204,13 +3241,14 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   "\tST\tr12,68(,r11)\n"     /* 0 bytes */
                   "\tL\tr12,12(,r15)\n"      /* 4 bytes */
                   "\tBR\tr12\n"              /* 8 bytes */
-                  "\t.short\t0\n",           /* 10 bytes */
+                  "\t.short\t0\n",           /* 10 padding */
                fnname, PIC_POOL_SECTION, fnname);
 
       fprintf (f, "\t.long\t%s@fent\n"       /* 12 bytes */
                   "\t.long\t%s@pool\n"       /* 16 pool table */
                   "\t.long\t%d\n"            /* 20 frame size */
                   "\t.long\t%s@pgt\n"        /* 24 page table */
+                  "\t.long\t0\n"             /* 28 unused; reserved */
                   "\t.using\t%s@pool,r12\n"
                   ".previous\n",
                fnname, fnname,
