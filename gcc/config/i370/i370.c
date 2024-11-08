@@ -3241,7 +3241,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   "\tST\tr12,68(,r11)\n"     /* 0 bytes */
                   "\tL\tr12,12(,r15)\n"      /* 4 bytes */
                   "\tBR\tr12\n"              /* 8 bytes */
-                  "\t.short\t0\n",           /* 10 padding */
+                  "\tNOPR 0\n",              /* 10 padding */
                fnname, PIC_POOL_SECTION, fnname);
 
       fprintf (f, "\t.long\t%s@fent\n"       /* 12 bytes */
