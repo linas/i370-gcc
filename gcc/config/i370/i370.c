@@ -3163,17 +3163,17 @@ static int least_used_register(void)
    .section .data.pool
    funcname:
       ST r12,68(r11)       addr  0:  save r12 in frame
-      L  r12,12(r15)       addr  4:  load addr of funcname@text
-      BR r12               addr  8:  branch to funcname@text
+      L  r12,12(r15)       addr  4:  load addr of funcname$fent
+      BR r12               addr  8:  branch to funcname$fent
       .short 0             addr 10:  padding
-      .long funcname@text  addr 12:  addr of function in text section
+      .long funcname$fent  addr 12:  addr of function in text section
       .long funcname$pool  addr 16:  location of literal pool
       .long stacksize      addr 20:  size of stackframe
       .long funcname$pgt   addr 24:  location of page table (for branches)
       .long 0              addr 28:  unused; resereved
 
    .section .text:
-   funcname@text:
+   funcname$fent:
       STM stuff     -- the conventional text function entry.
 
    Both of these sections are assembled into the ELF file for the shared
@@ -3194,15 +3194,15 @@ static int least_used_register(void)
    `funcname` can be fully resolved by pointing them at (a copy) of the
    above pool entry.
 
-   The value of `funcname@text` cannot be known at link time, because
+   The value of `funcname$fent` cannot be known at link time, because
    it has to point at a shared library whose load address is not yet
    known, and must be resolved at runtime. Likewise, the values for
    `funcname$pool` and `funcname$pgt` are not known. Instead, the value
-   placed at `funcname@text` will be the address of the dynamic loader.
+   placed at `funcname$fent` will be the address of the dynamic loader.
 
    When a non-PIC application is executed, the first call to `funcname`
    will branch to the dynamic loader. The dynamic loader is able to
-   determine the actual address of `funcname@text` and copies this into
+   determine the actual address of `funcname$fent` and copies this into
    the jumper entry. This is some location in the text segment of the
    shared object. Similarly, the `funcname$pool` and `funcname$pgt` can
    be resolved; these are somewhere in the data segment of the shared
