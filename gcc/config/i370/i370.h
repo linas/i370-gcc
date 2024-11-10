@@ -1692,18 +1692,16 @@ enum reg_class
 /* Overload the default implementation, so that we can hop back to
  * the previous (text) segment, before printing .Letext0. This is
  * needed only because the PIC code dumping prologs in the .data
- * segment.  In general, the PIC design my be very broken, so this
- * might not be needed in the end. */
+ * segment.  Note we must go back to previous, even is the size
+ * directive is inhibited.  */
 #undef ASM_DECLARE_FUNCTION_SIZE
 #define ASM_DECLARE_FUNCTION_SIZE(FILE, FNAME, DECL)			\
   do									\
     {									\
       if (!flag_inhibit_size_directive)					\
-        {								\
-          ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);			\
-	  if (i370_enable_pic)						\
-	    fprintf(FILE, ".previous\n");				\
-        }								\
+        ASM_OUTPUT_MEASURED_SIZE (FILE, FNAME);				\
+      if (i370_enable_pic)						\
+	fprintf(FILE, ".previous\n");					\
     }									\
   while (0)
 

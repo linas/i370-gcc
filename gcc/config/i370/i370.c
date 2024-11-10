@@ -90,14 +90,6 @@ static int just_referenced_page = -1;
    branch origin, and thus the base register must be (re)loaded.  */
 int mvs_need_base_reload = 0;
 
-/* Is 1 when an entry point is to be generated.  */
-int mvs_need_entry = 0;
-
-/* Is 1 if we have seen main() */
-int mvs_gotmain = 0;
-
-int mvs_need_to_globalize = 1;
-
 /* Current function starting base page.  */
 int function_base_page = 0;
 
@@ -116,9 +108,6 @@ char *mvs_csect_name = 0;
 /* Current function name.  */
 char *mvs_function_name = 0;
 
-/* Current source module.  */
-char *mvs_module = 0;
-
 /* Current function name length.  */
 size_t mvs_function_name_length = 0;
 
@@ -134,26 +123,14 @@ static label_node_t *free_anchor = 0;
 /* Assembler source file descriptor.  */
 static FILE *assembler_source = 0;
 
-/* Flag that enables position independent code. */
-int i370_enable_pic = 1;
-
-/* ID number for PIC literal pools. */
-int i370_pic_pool_num = 0;
-
-/* First PIC pool of the function. */
-int function_base_pic_pool = 0;
-
 static label_node_t * mvs_get_label (int);
 static void i370_label_scan (void);
 
+static void i370_globalize_label (FILE *, const char *);
 static void i370_output_function_prologue (FILE *, HOST_WIDE_INT);
 static void i370_output_function_epilogue (FILE *, HOST_WIDE_INT);
 static void i370_file_start (void);
 static void i370_file_end (void);
-
-#ifdef TARGET_ALIASES
-static int mvs_hash_alias (const char *);
-#endif
 
 static void i370_internal_label (FILE *, const char *, unsigned long);
 static bool i370_rtx_costs (rtx, int, int, int *);
@@ -169,8 +146,43 @@ static bool i370_rtx_costs (rtx, int, int, int *);
 #define sign_extend16(HI) ((long int) ((signed short) HI))
 
 /* ===================================================== */
+/* Defines and functions specific to the ELF ABI assembler. */
+
+#ifdef TARGET_ELF_ABI
+
+/* Flag that enables position independent code. */
+int i370_enable_pic = 1;
+
+/* ID number for PIC literal pools. */
+int i370_pic_pool_num = 0;
+
+/* First PIC pool of the function. */
+int function_base_pic_pool = 0;
+
+/* Set to 1 when a function is to be declared global */
+int globalize_label = 0;
+
+#endif
+
+/* ===================================================== */
 /* Defines and functions specific to the HLASM assembler. */
+
+#ifdef TARGET_ALIASES
+static int mvs_hash_alias (const char *);
+#endif
+
 #ifdef TARGET_HLASM
+
+/* Current source module.  */
+char *mvs_module = 0;
+
+/* Is 1 when an entry point is to be generated.  */
+int mvs_need_entry = 0;
+
+/* Is 1 if we have seen main() */
+int mvs_gotmain = 0;
+
+int mvs_need_to_globalize = 1;
 
 /* First entry point.  */
 static int mvs_first_entry = 1;
@@ -181,7 +193,6 @@ static int mvs_first_entry = 1;
 static void i370_encode_section_info (tree, rtx, int);
 static const char * i370_strip_name_encoding (const char *s);
 static bool i370_hlasm_assemble_integer (rtx, unsigned int, int);
-static void i370_globalize_label (FILE *, const char *);
 
 #define MVS_HASH_PRIME 999983
 #if HOST_CHARSET == HOST_CHARSET_EBCDIC
@@ -254,11 +265,11 @@ static const char *const mvs_function_table[MVS_FUNCTION_TABLE_LENGTH] =
 #define TARGET_ASM_ALIGNED_SI_OP NULL
 #undef TARGET_ASM_INTEGER
 #define TARGET_ASM_INTEGER i370_hlasm_assemble_integer
-#undef TARGET_ASM_GLOBALIZE_LABEL
-#define TARGET_ASM_GLOBALIZE_LABEL i370_globalize_label
 #endif
 
 /* Shard by all */
+#undef TARGET_ASM_GLOBALIZE_LABEL
+#define TARGET_ASM_GLOBALIZE_LABEL i370_globalize_label
 #undef TARGET_ASM_FUNCTION_PROLOGUE
 #define TARGET_ASM_FUNCTION_PROLOGUE i370_output_function_prologue
 #undef TARGET_ASM_FUNCTION_EPILOGUE
@@ -3204,6 +3215,12 @@ static int least_used_register(void)
  */
 
 static void
+i370_globalize_label (FILE *stream, const char *name)
+{
+  globalize_label = 1;
+}
+
+static void
 i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
 {
   static int function_label_index = 1;
@@ -3232,27 +3249,46 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   if ('*' == *fnname) fnname++;
   if (i370_enable_pic)
     {
+      if (globalize_label)
+        {
+          globalize_label = 0;
+          fprintf (f, ".globl %s@fent\n"
+                      "\t.type %s@fent, @function\n",
+                   fnname, fnname);
+
+          fprintf (f, ".globl %s@pool\n"
+                      "\t.type %s@pool, @object\n"
+                      ".globl %s@pgt\n"
+                      "\t.type %s@pgt, @object\n",
+                   fnname, fnname, fnname, fnname);
+        }
+
       /* Use register 12 as base register for addressing
         into the data section.  */
       fprintf (f, "# Function %s PIC glue \n"
-                  ".section %s\n"
-                  "\t.balign 4\n"
+                  ".section %s\n",
+               fnname, PIC_POOL_SECTION);
+
+      fprintf (f, "\t.balign 4\n"
                   "%s:\n"
                   "\tST\tr12,68(,r11)\n"     /* 0 bytes */
                   "\tL\tr12,12(,r15)\n"      /* 4 bytes */
                   "\tBR\tr12\n"              /* 8 bytes */
                   "\tNOPR 0\n",              /* 10 padding */
-               fnname, PIC_POOL_SECTION, fnname);
+               fnname);
 
       fprintf (f, "\t.long\t%s@fent\n"       /* 12 bytes */
                   "\t.long\t%s@pool\n"       /* 16 pool table */
                   "\t.long\t%d\n"            /* 20 frame size */
                   "\t.long\t%s@pgt\n"        /* 24 page table */
                   "\t.long\t0\n"             /* 28 unused; reserved */
-                  "\t.using\t%s@pool,r12\n"
-                  ".previous\n",
+                  "\t.using\t%s@pool,r12\n",
                fnname, fnname,
                aligned_size, fnname, fnname);
+
+      fprintf (f, "\t.size %s, .-%s\n"
+                  ".previous\n",
+               fnname, fnname);
 
       fprintf (f, "# Function %s prologue \n"
                   "%s@fent:\n",
@@ -3372,11 +3408,13 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   fprintf (file, "# Function literal pool\n");
   if (i370_enable_pic)
     {
+      fprintf (file, "\t.size %s@fent, .-%s@fent\n", fnname, fnname);
       fprintf (file, ".section %s\n", PIC_POOL_SECTION);
       fprintf (file, "\t.balign\t4\n");
       fprintf (file, "%s@pool:\n", fnname);
       fprintf (file, ".LPOOL%d:\n",i370_pic_pool_num);
       fprintf (file, "\t.ltorg\n");
+      fprintf (file, "\t.size %s@pool, .-%s@pool\n", fnname, fnname);
       fprintf (file, "# Function page table\n");
       fprintf (file, "\t.balign\t4\n");
       fprintf (file, "%s@pgt:\n", fnname);
@@ -3387,6 +3425,8 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
       i370_pic_pool_num++;
       for (i = function_base_pic_pool; i < i370_pic_pool_num; i++)
           fprintf (file, "\t.long\t.LPOOL%d\n", i);
+
+      fprintf (file, "\t.size %s@pgt, .-%s@pgt\n", fnname, fnname);
 
       /* fprintf (file, ".previous\n"); Now done in ASM_DECLARE_FUNCTION_SIZE */
     }
