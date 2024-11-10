@@ -3218,6 +3218,7 @@ static void
 i370_globalize_label (FILE *stream, const char *name)
 {
   globalize_label = 1;
+  default_globalize_label(stream, name);
 }
 
 static void
