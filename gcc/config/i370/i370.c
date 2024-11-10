@@ -799,7 +799,7 @@ i370_label_scan (void)
    branching) and r12 (the register to index the literal pool, kept
    in the data section).  Thus, the ELF pic version has more entries.
 
-     funcname@pgt:    // PGT0 EQU *
+     funcname$pgt:    // PGT0 EQU *
      .long .LPG0      // Addr of code page, using r3 for branching
      .long .LPG1      // Next code page (if code is longer than 4K)
      .long .LPOOL0    // Addr of literal pool, using r12 for addressing
@@ -3167,9 +3167,9 @@ static int least_used_register(void)
       BR r12               addr  8:  branch to funcname@text
       .short 0             addr 10:  padding
       .long funcname@text  addr 12:  addr of function in text section
-      .long funcname@pool  addr 16:  location of literal pool
+      .long funcname$pool  addr 16:  location of literal pool
       .long stacksize      addr 20:  size of stackframe
-      .long funcname@pgt   addr 24:  location of page table (for branches)
+      .long funcname$pgt   addr 24:  location of page table (for branches)
       .long 0              addr 28:  unused; resereved
 
    .section .text:
@@ -3197,14 +3197,14 @@ static int least_used_register(void)
    The value of `funcname@text` cannot be known at link time, because
    it has to point at a shared library whose load address is not yet
    known, and must be resolved at runtime. Likewise, the values for
-   `funcname@pool` and `funcname@pgt` are not known. Instead, the value
+   `funcname$pool` and `funcname$pgt` are not known. Instead, the value
    placed at `funcname@text` will be the address of the dynamic loader.
 
    When a non-PIC application is executed, the first call to `funcname`
    will branch to the dynamic loader. The dynamic loader is able to
    determine the actual address of `funcname@text` and copies this into
    the jumper entry. This is some location in the text segment of the
-   shared object. Similarly, the `funcname@pool` and `funcname@pgt` can
+   shared object. Similarly, the `funcname$pool` and `funcname$pgt` can
    be resolved; these are somewhere in the data segment of the shared
    object.
 
@@ -3253,14 +3253,14 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       if (globalize_label)
         {
           globalize_label = 0;
-          fprintf (f, ".globl %s@fent\n"
-                      "\t.type %s@fent, @function\n",
+          fprintf (f, ".globl %s$fent\n"
+                      "\t.type %s$fent, @function\n",
                    fnname, fnname);
 
-          fprintf (f, ".globl %s@pool\n"
-                      "\t.type %s@pool, @object\n"
-                      ".globl %s@pgt\n"
-                      "\t.type %s@pgt, @object\n",
+          fprintf (f, ".globl %s$pool\n"
+                      "\t.type %s$pool, @object\n"
+                      ".globl %s$pgt\n"
+                      "\t.type %s$pgt, @object\n",
                    fnname, fnname, fnname, fnname);
         }
 
@@ -3278,12 +3278,12 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                   "\tNOPR 0\n",              /* 10 padding */
                fnname);
 
-      fprintf (f, "\t.long\t%s@fent\n"       /* 12 bytes */
-                  "\t.long\t%s@pool\n"       /* 16 pool table */
+      fprintf (f, "\t.long\t%s$fent\n"       /* 12 bytes */
+                  "\t.long\t%s$pool\n"       /* 16 pool table */
                   "\t.long\t%d\n"            /* 20 frame size */
-                  "\t.long\t%s@pgt\n"        /* 24 page table */
+                  "\t.long\t%s$pgt\n"        /* 24 page table */
                   "\t.long\t0\n"             /* 28 unused; reserved */
-                  "\t.using\t%s@pool,r12\n",
+                  "\t.using\t%s$pool,r12\n",
                fnname, fnname,
                aligned_size, fnname, fnname);
 
@@ -3292,7 +3292,7 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
                fnname, fnname);
 
       fprintf (f, "# Function %s prologue \n"
-                  "%s@fent:\n",
+                  "%s$fent:\n",
                fnname, fnname);
 
       /* Store multiple registers 13,14 at 8 bytes from sp */
@@ -3409,16 +3409,16 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
   fprintf (file, "# Function literal pool\n");
   if (i370_enable_pic)
     {
-      fprintf (file, "\t.size %s@fent, .-%s@fent\n", fnname, fnname);
+      fprintf (file, "\t.size %s$fent, .-%s$fent\n", fnname, fnname);
       fprintf (file, ".section %s\n", PIC_POOL_SECTION);
       fprintf (file, "\t.balign\t4\n");
-      fprintf (file, "%s@pool:\n", fnname);
+      fprintf (file, "%s$pool:\n", fnname);
       fprintf (file, ".LPOOL%d:\n",i370_pic_pool_num);
       fprintf (file, "\t.ltorg\n");
-      fprintf (file, "\t.size %s@pool, .-%s@pool\n", fnname, fnname);
+      fprintf (file, "\t.size %s$pool, .-%s$pool\n", fnname, fnname);
       fprintf (file, "# Function page table\n");
       fprintf (file, "\t.balign\t4\n");
-      fprintf (file, "%s@pgt:\n", fnname);
+      fprintf (file, "%s$pgt:\n", fnname);
       mvs_page_num++;
       for (i = function_base_page; i < mvs_page_num; i++)
         fprintf (file, "\t.long\t.LPG%d\n", i);
@@ -3427,7 +3427,7 @@ i370_output_function_epilogue (FILE *file, HOST_WIDE_INT l ATTRIBUTE_UNUSED)
       for (i = function_base_pic_pool; i < i370_pic_pool_num; i++)
           fprintf (file, "\t.long\t.LPOOL%d\n", i);
 
-      fprintf (file, "\t.size %s@pgt, .-%s@pgt\n", fnname, fnname);
+      fprintf (file, "\t.size %s$pgt, .-%s$pgt\n", fnname, fnname);
 
       /* fprintf (file, ".previous\n"); Now done in ASM_DECLARE_FUNCTION_SIZE */
     }

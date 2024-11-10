@@ -904,7 +904,7 @@ i370-*-cms)
 	;;
 i370-*-linux* | i370-*-elf*)
 	tm_file="dbxelf.h elfos.h svr4.h linux.h i370/linux.h i370/i370.h"
-	tmake_file="i370/t-i370-elf t-slibgcc-elf-ver t-slibgcc-nolc-override t-linux"
+	tmake_file="t-slibgcc-elf-ver t-slibgcc-nolc-override t-linux i370/t-i370-elf"
 	;;
 i370-*-mvsdignus)
 	xm_defines='POSIX'
