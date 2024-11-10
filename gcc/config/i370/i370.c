@@ -3253,15 +3253,14 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
       if (0 == strcmp(globalized_label, mvs_function_name))
         {
           fprintf (f, ".globl %s$fent\n"
-                      "\t.type %s$fent, @function\n",
-                   fnname, fnname);
-
-          fprintf (f, ".globl %s$pool\n"
-                      "\t.type %s$pool, @object\n"
-                      ".globl %s$pgt\n"
-                      "\t.type %s$pgt, @object\n",
-                   fnname, fnname, fnname, fnname);
+                      ".globl %s$pool\n"
+                      ".globl %s$pgt\n",
+                   fnname, fnname, fnname);
         }
+      fprintf (f, "\t.type %s$fent, @function\n"
+                  "\t.type %s$pool, @object\n"
+                  "\t.type %s$pgt, @object\n",
+               fnname, fnname, fnname);
 
       /* Use register 12 as base register for addressing
         into the data section.  */
