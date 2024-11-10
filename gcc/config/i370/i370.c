@@ -159,8 +159,8 @@ int i370_pic_pool_num = 0;
 /* First PIC pool of the function. */
 int function_base_pic_pool = 0;
 
-/* Set to 1 when a function is to be declared global */
-int globalize_label = 0;
+/* Set to the string name of the most recent declared global */
+const char *globalized_label = "";
 
 #endif
 
@@ -3217,7 +3217,7 @@ static int least_used_register(void)
 static void
 i370_globalize_label (FILE *stream, const char *name)
 {
-  globalize_label = 1;
+  globalized_label = name;
   default_globalize_label(stream, name);
 }
 
@@ -3250,9 +3250,8 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
   if ('*' == *fnname) fnname++;
   if (i370_enable_pic)
     {
-      if (globalize_label)
+      if (0 == strcmp(globalized_label, mvs_function_name))
         {
-          globalize_label = 0;
           fprintf (f, ".globl %s$fent\n"
                       "\t.type %s$fent, @function\n",
                    fnname, fnname);
