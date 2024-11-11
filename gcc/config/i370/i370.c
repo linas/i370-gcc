@@ -3252,10 +3252,8 @@ i370_output_function_prologue (FILE *f, HOST_WIDE_INT frame_size)
     {
       if (0 == strcmp(globalized_label, mvs_function_name))
         {
-          fprintf (f, ".globl %s$fent\n"
-                      ".globl %s$pool\n"
-                      ".globl %s$pgt\n",
-                   fnname, fnname, fnname);
+          fprintf (f, ".globl %s$fent\n",
+                   fnname);
         }
       fprintf (f, "\t.type %s$fent, @function\n"
                   "\t.type %s$pool, @object\n"
