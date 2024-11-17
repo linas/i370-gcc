@@ -1,8 +1,11 @@
 README for i370-gcc
 -------------------
-This git repo contains several versions of GNU GCC adapted for the
-IBM System/370 instruction set. The goal is to provide a compiler
-suitable for use with the i370-binutils assembler.
+This git repo contains several versions of GNU GCC, including GCCMVS,
+adapted for the IBM System/370 instruction set. It produces code that
+can be assembled either with HLASM or with the i370-binutils assembler.
+
+(Do not be fooled by the ancient date-stamps on some of the files in
+git: this version is current, as of November 2024.)
 
 Both this target, the i370, and the s390 target create binaries that can
 run on the IBM System/390 mainframes. However, the generated assembly
@@ -16,6 +19,8 @@ Linux kernel.  This kernel can be found on github, at
 [linas/i370-linux-2.2.1](https://github.com/linas/i370-linux-2.2.1).
 General background is provided on
 [Linas' i370 website](https://linas.org/linux/i370/i370.html).
+A working demo is in the
+[i370-bigfoot Docker container](https://github.com/linas/i370-bigfoot).
 
 ### HOWTO
 The last version of gcc with the i370 machine definition in it was
@@ -25,8 +30,9 @@ The i370 code was removed by `releases/gcc-4.0.0`.
 The code here starts with gcc release 3.4.6 and applies a large number
 of fixes that (a) were lost during the infighting between egcs and gcc,
 (b) fix bugs that were discovered after gcc-4.0.0 came out, and thus,
-the fixes were never upstreamed.  This includes fixes from Paul Edwards,
-among others. (c) Extensions for a number of different HLASM OS targets.
+the fixes were never upstreamed.  This includes fixes from Paul Edwards
+and Dave Pitts, among others. (c) Extensions for a number of different
+HLASM OS targets.
 
 To get the latest, either clone everything:
 ```
