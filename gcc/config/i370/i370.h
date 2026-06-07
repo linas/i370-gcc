@@ -36,11 +36,15 @@ Boston, MA 02111-1307, USA.  */
     }						\
   while (0)
 
-#ifndef SUBTARGET_EXTRA_SPECS
-#define SUBTARGET_EXTRA_SPECS
-#endif
+/* Only define EXTRA_SPECS when a subtarget actually provides extra specs.
+   Defining it empty yields a zero-length extra_specs_1[] array in gcc.c,
+   which modern host compilers (e.g. gcc >= 14) reject as a constraint
+   error.  When no subtarget supplies extra specs, leaving EXTRA_SPECS
+   undefined causes gcc.c to skip the block entirely, which is correct.  */
+#ifdef SUBTARGET_EXTRA_SPECS
 #define EXTRA_SPECS				\
   SUBTARGET_EXTRA_SPECS
+#endif
 
 /* Run-time compilation parameters selecting different hardware subsets.  */
 
