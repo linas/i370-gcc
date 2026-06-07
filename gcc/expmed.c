@@ -350,7 +350,7 @@ store_bit_field (rtx str_rtx, unsigned HOST_WIDE_INT bitsize,
 	  || ! (*insn_data[icode].operand[1].predicate) (src, mode1)
 	  || ! (*insn_data[icode].operand[2].predicate) (rtxpos, mode2))
 	abort ();
-      pat = GEN_FCN (icode) (dest, src, rtxpos);
+      pat = GEN_FCN3 (icode) (dest, src, rtxpos);
       seq = get_insns ();
       end_sequence ();
       if (pat)
@@ -467,7 +467,7 @@ store_bit_field (rtx str_rtx, unsigned HOST_WIDE_INT bitsize,
 	    abort ();
 	}
 
-      emit_insn (GEN_FCN (icode)
+      emit_insn (GEN_FCN2 (icode)
 		 (gen_rtx_SUBREG (fieldmode, op0,
 				  (bitnum % BITS_PER_WORD) / BITS_PER_UNIT
 				  + (offset * UNITS_PER_WORD)),
@@ -1115,7 +1115,7 @@ extract_bit_field (rtx str_rtx, unsigned HOST_WIDE_INT bitsize,
 	  || ! (*insn_data[icode].operand[2].predicate) (rtxpos, mode2))
 	abort ();
 
-      pat = GEN_FCN (icode) (dest, src, rtxpos);
+      pat = GEN_FCN3 (icode) (dest, src, rtxpos);
       seq = get_insns ();
       end_sequence ();
       if (pat)
@@ -4514,7 +4514,7 @@ emit_store_flag (rtx target, enum rtx_code code, rtx op0, rtx op1,
 	  || ! (*pred) (subtarget, compare_mode))
 	subtarget = gen_reg_rtx (compare_mode);
 
-      pattern = GEN_FCN (icode) (subtarget);
+      pattern = GEN_FCN1 (icode) (subtarget);
       if (pattern)
 	{
 	  emit_insn (pattern);

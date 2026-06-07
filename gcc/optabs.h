@@ -65,6 +65,22 @@ typedef struct convert_optab *convert_optab;
    the body of that kind of insn.  */
 #define GEN_FCN(CODE) (insn_data[CODE].genfun)
 
+/* On ARM64 (and other platforms where the varargs calling convention
+   differs from the regular one), GEN_FCN must be cast to the correct
+   function pointer type.  The genfun varargs prototype rtx (*)(rtx, ...)
+   causes arguments after the first to be passed on the stack instead of
+   in registers, corrupting calls to the (non-varargs) gen_* functions.  */
+#define GEN_FCN1(CODE) \
+  (((rtx (*)(rtx))(insn_data[(int)(CODE)].genfun)))
+#define GEN_FCN2(CODE) \
+  (((rtx (*)(rtx, rtx))(insn_data[(int)(CODE)].genfun)))
+#define GEN_FCN3(CODE) \
+  (((rtx (*)(rtx, rtx, rtx))(insn_data[(int)(CODE)].genfun)))
+#define GEN_FCN4(CODE) \
+  (((rtx (*)(rtx, rtx, rtx, rtx))(insn_data[(int)(CODE)].genfun)))
+#define GEN_FCN5(CODE) \
+  (((rtx (*)(rtx, rtx, rtx, rtx, rtx))(insn_data[(int)(CODE)].genfun)))
+
 /* Enumeration of valid indexes into optab_table.  */
 enum optab_index
 {

@@ -2221,7 +2221,7 @@ expand_builtin_strlen (tree arglist, rtx target,
 							    char_mode))
 	char_rtx = copy_to_mode_reg (char_mode, char_rtx);
 
-      pat = GEN_FCN (icode) (result, gen_rtx_MEM (BLKmode, src_reg),
+      pat = GEN_FCN4 (icode) (result, gen_rtx_MEM (BLKmode, src_reg),
 			     char_rtx, GEN_INT (align));
       if (! pat)
 	return 0;
