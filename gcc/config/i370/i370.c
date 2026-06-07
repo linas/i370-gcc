@@ -1826,9 +1826,11 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	else
 	  {
 	    mvs_page_lit += 4;
-	    /* Avoid -1 being printed as =F'9223372036854775807' */
-	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'",
-		(int) (INTVAL (XV) & 0xffffffff));
+	    /* Print the low 32 bits as a signed value so the host word size
+	       does not leak in: 0xFFFFFFFF must come out as =F'-1', not
+	       =F'4294967295' (which overflows the assembler's signed fullword
+	       and is truncated with high-order digits lost).  */
+	    fprintf (fh, "=F'%d'", (int) (INTVAL (XV) & 0xffffffff));
 	  }
 	break;
       case CONST_DOUBLE:
@@ -2101,9 +2103,11 @@ i370_print_operand (FILE *fh, rtx XV, int CODE)
 	else
 	  {
 	    mvs_page_lit += 4;
-	    /* Avoid -1 being printed as =F'9223372036854775807' */
-	    fprintf (fh, "=F'" HOST_WIDE_INT_PRINT_DEC "'",
-		(INTVAL (XV) & 0xffffffff));
+	    /* Print the low 32 bits as a signed value so the host word size
+	       does not leak in: 0xFFFFFFFF must come out as =F'-1', not
+	       =F'4294967295' (which overflows the assembler's signed fullword
+	       and is truncated with high-order digits lost).  */
+	    fprintf (fh, "=F'%d'", (int) (INTVAL (XV) & 0xffffffff));
 	  }
 	break;
       case CONST_DOUBLE:
