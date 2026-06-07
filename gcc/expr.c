@@ -1497,7 +1497,7 @@ emit_block_move_via_movstr (rtx x, rtx y, rtx size, unsigned int align)
 	     that it doesn't fail the expansion because it thinks
 	     emitting the libcall would be more efficient.  */
 
-	  pat = GEN_FCN ((int) code) (x, y, op2, opalign);
+	  pat = GEN_FCN4 ((int) code) (x, y, op2, opalign);
 	  if (pat)
 	    {
 	      emit_insn (pat);
@@ -2637,7 +2637,7 @@ clear_storage_via_clrstr (rtx object, rtx size, unsigned int align)
 	  if (pred != 0 && ! (*pred) (op1, mode))
 	    op1 = copy_to_mode_reg (mode, op1);
 
-	  pat = GEN_FCN ((int) code) (object, op1, opalign);
+	  pat = GEN_FCN3 ((int) code) (object, op1, opalign);
 	  if (pat)
 	    {
 	      emit_insn (pat);
@@ -2877,7 +2877,7 @@ emit_move_insn_1 (rtx x, rtx y)
 
   if (mov_optab->handlers[(int) mode].insn_code != CODE_FOR_nothing)
     return
-      emit_insn (GEN_FCN (mov_optab->handlers[(int) mode].insn_code) (x, y));
+      emit_insn (GEN_FCN2 (mov_optab->handlers[(int) mode].insn_code) (x, y));
 
   /* Expand complex moves by moving real part and imag part, if possible.  */
   else if ((class == MODE_COMPLEX_FLOAT || class == MODE_COMPLEX_INT)
@@ -3089,7 +3089,7 @@ emit_move_insn_1 (rtx x, rtx y)
 	}
 
       insn_code = mov_optab->handlers[(int) tmode].insn_code;
-      return emit_insn (GEN_FCN (insn_code) (x, y));
+      return emit_insn (GEN_FCN2 (insn_code) (x, y));
     }
 
   /* Try using a move pattern for the corresponding integer mode.  This is
@@ -3099,7 +3099,7 @@ emit_move_insn_1 (rtx x, rtx y)
   else if (GET_MODE_BITSIZE (mode) <= HOST_BITS_PER_WIDE_INT
 	   && (submode = int_mode_for_mode (mode)) != BLKmode
 	   && mov_optab->handlers[submode].insn_code != CODE_FOR_nothing)
-    return emit_insn (GEN_FCN (mov_optab->handlers[submode].insn_code)
+    return emit_insn (GEN_FCN2 (mov_optab->handlers[submode].insn_code)
 		      (simplify_gen_subreg (submode, x, mode, 0),
 		       simplify_gen_subreg (submode, y, mode, 0)));
 
@@ -3348,7 +3348,7 @@ emit_single_push_insn (enum machine_mode mode, rtx x, tree type)
       if (((pred = insn_data[(int) icode].operand[0].predicate)
 	   && !((*pred) (x, mode))))
 	x = force_reg (mode, x);
-      emit_insn (GEN_FCN (icode) (x));
+      emit_insn (GEN_FCN1 (icode) (x));
       return;
     }
   if (GET_MODE_SIZE (mode) == rounded_size)
@@ -5046,7 +5046,7 @@ store_constructor (tree exp, rtx target, int cleared, HOST_WIDE_INT size)
 	}
       if (vector)
 	{
-	  emit_insn (GEN_FCN (icode) (target,
+	  emit_insn (GEN_FCN2 (icode) (target,
 				      gen_rtx_PARALLEL (GET_MODE (target),
 						        gen_rtvec_v (n_elts, vector))));
 	}
@@ -9381,7 +9381,7 @@ expand_increment (tree exp, int post, int ignore)
 	  if (! (*insn_data[icode].operand[2].predicate) (op1, mode))
 	    op1 = force_reg (mode, op1);
 
-	  return enqueue_insn (op0, GEN_FCN (icode) (op0, op0, op1));
+	  return enqueue_insn (op0, GEN_FCN3 (icode) (op0, op0, op1));
 	}
       if (icode != (int) CODE_FOR_nothing && GET_CODE (op0) == MEM)
 	{
@@ -9398,7 +9398,7 @@ expand_increment (tree exp, int post, int ignore)
 	  /* The increment queue is LIFO, thus we have to `queue'
 	     the instructions in reverse order.  */
 	  enqueue_insn (op0, gen_move_insn (op0, temp));
-	  result = enqueue_insn (temp, GEN_FCN (icode) (temp, temp, op1));
+	  result = enqueue_insn (temp, GEN_FCN3 (icode) (temp, temp, op1));
 	  return result;
 	}
     }
