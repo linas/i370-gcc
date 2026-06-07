@@ -1287,7 +1287,7 @@ move_by_pieces_1 (rtx (*genfun) (rtx, ...), enum machine_mode mode,
 				  GEN_INT (-(HOST_WIDE_INT)size)));
 
       if (data->to)
-	emit_insn ((*genfun) (to1, from1));
+	emit_insn ((*(rtx (*) (rtx, rtx)) genfun) (to1, from1));
       else
 	{
 #ifdef PUSH_ROUNDING
@@ -2548,7 +2548,7 @@ store_by_pieces_2 (rtx (*genfun) (rtx, ...), enum machine_mode mode,
 				  GEN_INT (-(HOST_WIDE_INT) size)));
 
       cst = (*data->constfun) (data->constfundata, data->offset, mode);
-      emit_insn ((*genfun) (to1, cst));
+      emit_insn ((*(rtx (*) (rtx, rtx)) genfun) (to1, cst));
 
       if (HAVE_POST_INCREMENT && data->explicit_inc_to > 0)
 	emit_insn (gen_add2_insn (data->to_addr, GEN_INT (size)));
@@ -4602,7 +4602,7 @@ store_constructor (tree exp, rtx target, int cleared, HOST_WIDE_INT size)
 		 it to implement the semantics of constructors for
 		 automatic objects.  However, not all machine descriptions
 		 define a blockage insn, so emit an ASM_INPUT to
-		 act as one.  */
+		 act as one. ï¿½*/
 	      emit_insn (gen_rtx_ASM_INPUT (VOIDmode, ""));
 	    }
 	}
