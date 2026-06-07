@@ -25,6 +25,7 @@ Boston, MA 02111-1307, USA.  */
 #include "config.h"
 #include "system.h"
 #include "coretypes.h"
+#include "tm.h"		/* for TARGET_HLASM, which guards the pragma handlers */
 #include "tree.h"
 #include "toplev.h"
 #include "cpplib.h"

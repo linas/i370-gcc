@@ -96,6 +96,19 @@ extern int i370_enable_pic;
 /* The desired CSECT name */
 extern char *mvs_csect_name;
 
+/* The current module (CSECT) name; defined in i370.c, referenced by the
+   ASM_OUTPUT macros that expand in final.c.  */
+extern char *mvs_module;
+
+/* Further i370 state defined in i370.c and referenced via the ASM_OUTPUT
+   macros that expand in the shared passes (final.c, varasm.c, toplev.c).
+   These extern declarations were missing, breaking the HLASM/MVS targets.  */
+extern int mvs_need_base_reload;
+extern int function_base_pic_pool;
+extern int mvs_need_entry;
+extern int mvs_gotmain;
+extern int mvs_need_to_globalize;
+
 #define TARGET_OPTIONS							\
 { { "csect=", (const char **) &mvs_csect_name,				\
     N_("Set CSECT name")},						\
@@ -106,11 +119,11 @@ extern char *mvs_csect_name;
 /* HLASM requires #pragma map.  */
 #define REGISTER_TARGET_PRAGMAS() \
   do { \
-  cpp_register_pragma (PFILE, 0, "map", i370_pr_map); \
-  cpp_register_pragma (PFILE, 0, "nomargins", i370_pr_skipit); \
-  cpp_register_pragma (PFILE, 0, "nosequence", i370_pr_skipit); \
-  cpp_register_pragma (PFILE, 0, "checkout", i370_pr_checkout); \
-  cpp_register_pragma (PFILE, 0, "linkage", i370_pr_linkage); \
+  c_register_pragma (0, "map", i370_pr_map); \
+  c_register_pragma (0, "nomargins", i370_pr_skipit); \
+  c_register_pragma (0, "nosequence", i370_pr_skipit); \
+  c_register_pragma (0, "checkout", i370_pr_checkout); \
+  c_register_pragma (0, "linkage", i370_pr_linkage); \
   } while(0)
 #endif /* TARGET_HLASM */
 
@@ -180,15 +193,22 @@ extern void i370_override_options (void);
 
 /* #define REAL_ARITHMETIC */
 
-/* Define character mapping for cross-compiling.  */
-/* but only define it if really needed, since otherwise it will break builds */
+/* MAP_CHARACTER was an obsolete GCC mechanism for host/target character
+   mapping; it is poisoned in gcc/system.h as of GCC 3.4 and is unused by
+   the compiler (the helper mvs_map_char no longer exists).  Defining it
+   for TARGET_EBCDIC builds therefore breaks the build (poisoned identifier)
+   on modern hosts, so it is removed.  EBCDIC translation is handled
+   elsewhere.  */
 
-#ifdef TARGET_EBCDIC
-#ifdef HOST_EBCDIC
-#define MAP_CHARACTER(c) ((char)(c))
-#else
-#define MAP_CHARACTER(c) ((char)mvs_map_char (c))
+/* Host<->target character mapping used when emitting string/char constants
+   (i370.h and i370.c).  On GCC 3.4+ the host/target charset conversion is
+   done by cpp via -fexec-charset, so these are the identity here.  They were
+   referenced but never defined, breaking the link of the HLASM targets.  */
+#ifndef MAP_OUTCHAR
+#define MAP_OUTCHAR(c) (c)
 #endif
+#ifndef MAP_INCHAR
+#define MAP_INCHAR(c) (c)
 #endif
 
 /* Define maximum length of page minus page escape overhead.  */
