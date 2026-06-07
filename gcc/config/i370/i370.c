@@ -433,7 +433,10 @@ mvs_make_float (REAL_VALUE_TYPE r)
       char *t = p;
       for (p--; *p == '0'; p--) ;
       if (*p == '.') p++;
-      strcpy (++p, t);
+      /* Source and destination overlap (both point into buf); use memmove,
+         not strcpy.  Overlapping strcpy traps under macOS _FORTIFY_SOURCE.  */
+      ++p;
+      memmove (p, t, strlen (t) + 1);
    }
    return (buf);
 }
